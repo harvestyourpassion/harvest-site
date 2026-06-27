@@ -8,16 +8,31 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         tailwind.config = {
-            theme: { extend: { colors: {
-                'harvest-bg': '#0f172a', 'harvest-surface': '#1e293b',
-                'harvest-elevated': '#334155', 'harvest-border': '#475569',
-                'harvest-text': '#e2e8f0', 'harvest-green': '#22c55e',
-            }}}
+            theme: {
+                extend: {
+                    colors: {
+                        'harvest-bg': '#0f172a',
+                        'harvest-surface': '#1e293b',
+                        'harvest-elevated': '#334155',
+                        'harvest-border': '#475569',
+                        'harvest-text': '#e2e8f0',
+                        'harvest-green': '#22c55e',
+                    }
+                }
+            }
         }
     </script>
     <link rel="stylesheet" href="/styles.css">
+    <style>
+        .fade-in { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .time-slot { transition: all 0.2s ease; }
+        .time-slot:hover { transform: scale(1.05); }
+        .time-slot.selected { background: #22c55e; color: white; transform: scale(1.05); }
+    </style>
 </head>
 <body class="bg-harvest-bg text-harvest-text min-h-screen">
+    <!-- Site Navigation -->
     <nav class="border-b border-harvest-border bg-harvest-surface/80 backdrop-blur-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
@@ -26,30 +41,212 @@
                     <span class="text-xl font-bold text-harvest-green">Harvest Your Passion</span>
                 </a>
                 <div class="hidden md:flex items-center space-x-8">
-                    <a href="/coaching/" class="hover:text-harvest-green transition-colors">Coaching</a>
+                    <a href="/coaching/" class="text-harvest-green font-medium">Coaching</a>
                     <a href="/roots/" class="hover:text-harvest-green transition-colors">Roots</a>
                     <a href="/blog/" class="hover:text-harvest-green transition-colors">Blog</a>
                     <a href="/store/" class="hover:text-harvest-green transition-colors">Store</a>
                     <a href="/about/" class="hover:text-harvest-green transition-colors">About</a>
                 </div>
                 <div id="auth-section">
-                    <button onclick="login()" class="bg-harvest-green hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors">Sign In</button>
+                    <button onclick="login()" class="border border-gray-600 hover:border-harvest-green text-white px-4 py-1.5 rounded-full text-sm font-medium transition-colors">
+                        Log In
+                    </button>
                 </div>
             </div>
         </div>
     </nav>
-    <section class="py-20 px-4">
-        <div class="max-w-4xl mx-auto text-center">
-            <div class="text-6xl mb-6">🌿</div>
-            <h1 class="text-4xl md:text-5xl font-bold mb-4">Coaching</h1>
-            <p class="text-xl text-gray-400 mb-8">Personalized guidance to identify your path and build momentum. From clarity to execution.</p>
-            <div class="bg-harvest-surface border border-harvest-border rounded-xl p-8 mt-8">
-                <p class="text-harvest-green font-medium">🚧 Coming Soon</p>
-                <p class="text-gray-400 mt-2">This section is being built. Check back soon!</p>
-            </div>
+
+    <!-- Coaching Sub-Navigation -->
+    <div class="bg-harvest-surface border-b border-harvest-border">
+        <div class="max-w-6xl mx-auto px-6 py-3">
+            <nav class="flex items-center gap-6 overflow-x-auto">
+                <a href="#" onclick="showPage('packages')" class="text-sm text-gray-400 hover:text-harvest-green font-medium transition-colors whitespace-nowrap" id="nav-packages">Packages</a>
+                <a href="#" onclick="showPage('schedule')" class="text-sm text-gray-400 hover:text-harvest-green font-medium transition-colors whitespace-nowrap" id="nav-schedule">Schedule</a>
+                <a href="#" onclick="showPage('sessions')" class="text-sm text-gray-400 hover:text-harvest-green font-medium transition-colors whitespace-nowrap" id="nav-sessions">My Sessions</a>
+                <a href="#" onclick="showPage('resources')" class="text-sm text-gray-400 hover:text-harvest-green font-medium transition-colors whitespace-nowrap" id="nav-resources">Resources</a>
+                <a href="#" onclick="showPage('intake')" class="text-sm text-gray-400 hover:text-harvest-green font-medium transition-colors whitespace-nowrap" id="nav-intake">Intake Form</a>
+            </nav>
         </div>
-    </section>
-    <footer class="border-t border-harvest-border py-8 px-4 mt-auto">
+    </div>
+
+<!-- MAIN CONTENT -->
+  <main class="max-w-6xl mx-auto px-6 py-8">
+
+
+    <!-- PACKAGES PAGE -->
+    <div id="page-packages" class="fade-in">
+      <div class="text-center mb-8">
+        <h2 class="text-2xl font-bold">Coaching Packages</h2>
+        <p class="text-text-gray-400 mt-2">Find the right fit for your transformation journey</p>
+      </div>
+      <div id="packages-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      </div>
+    </div>
+
+    <!-- SCHEDULE PAGE -->
+    <div id="page-schedule" class="hidden fade-in">
+      <div class="text-center mb-8">
+        <h2 class="text-2xl font-bold">Book a Session</h2>
+        <p class="text-text-gray-400 mt-2">Choose your package, pick a date, and select a time</p>
+      </div>
+      <div class="max-w-lg mx-auto bg-harvest-surface border border-harvest-border rounded-xl p-6">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-text-gray-400 mb-2">Package</label>
+            <select id="book-package" onchange="handlePackageSelect()" class="w-full px-4 py-3 border border-harvest-border rounded-lg text-sm focus:outline-none focus:border-harvest-green">
+              <option value="">Choose a package...</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-text-gray-400 mb-2">Date</label>
+            <input type="date" id="book-date" onchange="handleDateSelect()" class="w-full px-4 py-3 border border-harvest-border rounded-lg text-sm focus:outline-none focus:border-harvest-green">
+          </div>
+          <div id="time-slots" class="hidden">
+            <label class="block text-sm font-medium text-text-gray-400 mb-2">Available Times</label>
+            <div id="time-slots-grid" class="grid grid-cols-3 gap-2">
+            </div>
+          </div>
+          <!-- Client Info -->
+          <div class="space-y-3 p-4 bg-harvest-elevated rounded-xl border border-harvest-border">
+            <p class="text-xs font-medium text-text-gray-400 uppercase tracking-wide">Your Info</p>
+            <input type="text" id="booking-name" placeholder="Your full name" class="w-full px-4 py-2.5 border border-harvest-border rounded-lg text-sm focus:outline-none focus:border-harvest-green">
+            <input type="email" id="booking-email" placeholder="Your email" class="w-full px-4 py-2.5 border border-harvest-border rounded-lg text-sm focus:outline-none focus:border-harvest-green">
+          </div>
+          <button id="btn-book" onclick="confirmBooking()" disabled class="w-full py-4 bg-harvest-green hover:bg-harvest-green-hover text-white rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            Book Session
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIRMATION PAGE -->
+    <div id="page-confirmation" class="hidden fade-in">
+      <div class="text-center max-w-lg mx-auto">
+        <div class="text-6xl mb-4">&#x1F389;</div>
+        <h2 class="text-2xl font-bold mb-2">Session Booked!</h2>
+        <div id="confirmation-details" class="text-text-gray-400 mb-6"></div>
+        <button onclick="showPage('sessions')" class="px-6 py-3 bg-harvest-green hover:bg-harvest-green-hover text-white rounded-xl font-medium text-sm">View My Sessions</button>
+      </div>
+    </div>
+
+    <!-- MY SESSIONS PAGE -->
+    <div id="page-sessions" class="hidden fade-in">
+      <div class="mb-6">
+        <h2 class="text-2xl font-bold">My Sessions</h2>
+        <p class="text-text-gray-400 mt-1">Your upcoming and past coaching sessions</p>
+      </div>
+      <div class="space-y-6">
+        <div>
+          <h3 class="font-semibold text-sm text-text-gray-400 uppercase tracking-wide mb-3">Upcoming</h3>
+          <div id="upcoming-sessions" class="space-y-3"></div>
+        </div>
+        <div>
+          <h3 class="font-semibold text-sm text-text-gray-400 uppercase tracking-wide mb-3">Past Sessions</h3>
+          <div id="past-sessions" class="space-y-3"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESOURCES PAGE -->
+    <div id="page-resources" class="hidden fade-in">
+      <div class="mb-6">
+        <h2 class="text-2xl font-bold">Resources</h2>
+        <p class="text-text-gray-400 mt-1">Tools and materials to support your growth</p>
+      </div>
+      <div id="client-resources-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </div>
+
+    <!-- INTAKE FORM PAGE -->
+    <div id="page-intake" class="hidden fade-in">
+      <div class="text-center mb-8">
+        <h2 class="text-2xl font-bold">Discovery Intake Form</h2>
+        <p class="text-text-gray-400 mt-2">Help me understand where you are and where you want to go.</p>
+      </div>
+      <div id="intake-form-container" class="max-w-2xl mx-auto">
+        <form id="intake-form" class="space-y-6">
+          <!-- Vision -->
+          <div class="bg-harvest-surface border border-harvest-border rounded-xl p-6">
+            <h3 class="font-semibold text-harvest-green mb-4">&#x1F31F; Vision</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium mb-2">What does your ideal life look like 1 year from now?</label>
+                <textarea name="q1" rows="3" required class="w-full px-4 py-3 border border-harvest-border rounded-lg text-sm focus:outline-none focus:border-harvest-green resize-none" placeholder="Describe your vision..."></textarea>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2">What would change in your life if you achieved this?</label>
+                <textarea name="q2" rows="3" required class="w-full px-4 py-3 border border-harvest-border rounded-lg text-sm focus:outline-none focus:border-harvest-green resize-none" placeholder="Think about the ripple effects..."></textarea>
+              </div>
+            </div>
+          </div>
+          <!-- Obstacles -->
+          <div class="bg-harvest-surface border border-harvest-border rounded-xl p-6">
+            <h3 class="font-semibold text-harvest-green mb-4">&#x1F9F1; Obstacles</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium mb-2">What's the biggest thing holding you back right now?</label>
+                <textarea name="q3" rows="3" required class="w-full px-4 py-3 border border-harvest-border rounded-lg text-sm focus:outline-none focus:border-harvest-green resize-none" placeholder="Be honest - this is confidential..."></textarea>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2">Have you tried to solve this before? What happened?</label>
+                <textarea name="q4" rows="3" class="w-full px-4 py-3 border border-harvest-border rounded-lg text-sm focus:outline-none focus:border-harvest-green resize-none" placeholder="Any previous attempts..."></textarea>
+              </div>
+            </div>
+          </div>
+          <!-- Commitment -->
+          <div class="bg-harvest-surface border border-harvest-border rounded-xl p-6">
+            <h3 class="font-semibold text-harvest-green mb-4">&#x1F4AA; Commitment</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium mb-2">On a scale of 1-10, how ready are you to make a change?</label>
+                <div class="flex items-center gap-3">
+                  <span class="text-xs text-text-gray-400">Not ready</span>
+                  <input type="range" name="q5" min="1" max="10" value="7" class="flex-1 accent-emerald-500" oninput="document.getElementById('readiness-val').textContent = this.value">
+                  <span class="text-xs text-text-gray-400">All in</span>
+                  <span id="readiness-val" class="text-lg font-bold text-harvest-green w-8 text-center">7</span>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2">What areas of life do you most want to improve?</label>
+                <div class="grid grid-cols-2 gap-2" id="life-areas">
+                  <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" name="q6" value="Career" class="accent-emerald-500 rounded"> Career</label>
+                  <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" name="q6" value="Relationships" class="accent-emerald-500 rounded"> Relationships</label>
+                  <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" name="q6" value="Health" class="accent-emerald-500 rounded"> Health & Fitness</label>
+                  <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" name="q6" value="Finances" class="accent-emerald-500 rounded"> Finances</label>
+                  <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" name="q6" value="Mindset" class="accent-emerald-500 rounded"> Mindset & Confidence</label>
+                  <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" name="q6" value="Spirituality" class="accent-emerald-500 rounded"> Spirituality</label>
+                  <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" name="q6" value="Purpose" class="accent-emerald-500 rounded"> Purpose & Passion</label>
+                  <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" name="q6" value="Leadership" class="accent-emerald-500 rounded"> Leadership</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Open -->
+          <div class="bg-harvest-surface border border-harvest-border rounded-xl p-6">
+            <h3 class="font-semibold text-harvest-green mb-4">&#x1F4AC; Anything Else</h3>
+            <div>
+              <label class="block text-sm font-medium mb-2">Is there anything else you'd like me to know before we begin?</label>
+              <textarea name="q7" rows="3" class="w-full px-4 py-3 border border-harvest-border rounded-lg text-sm focus:outline-none focus:border-harvest-green resize-none" placeholder="Optional - anything at all..."></textarea>
+            </div>
+          </div>
+          <button type="submit" class="w-full py-3 bg-harvest-green hover:bg-harvest-green-hover text-white rounded-xl font-semibold text-sm transition-colors">
+            Submit Intake Form
+          </button>
+        </form>
+      </div>
+      <!-- Success state -->
+      <div id="intake-success" class="hidden text-center max-w-lg mx-auto">
+        <div class="text-6xl mb-4">&#x2705;</div>
+        <h3 class="text-xl font-bold mb-2">Thank You!</h3>
+        <p class="text-text-gray-400 mb-6">Your intake form has been submitted. I'll review your responses before our first session so we can hit the ground running.</p>
+        <button onclick="showPage('packages')" class="px-6 py-3 bg-harvest-green hover:bg-harvest-green-hover text-white rounded-xl font-medium text-sm">Browse Packages</button>
+      </div>
+    </div>
+
+  
+  </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-harvest-border py-8 px-4 mt-16">
         <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center">
             <p class="text-gray-500">© 2026 Harvest Your Passion LLC. All rights reserved.</p>
             <div class="flex space-x-6 mt-4 md:mt-0">
@@ -58,6 +255,430 @@
             </div>
         </div>
     </footer>
+
     <script src="/auth.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var allPackages = [];
+        var selectedTimeSlot = null;
+        var currentUser = null;
+
+        // Check auth state
+        supabase.auth.getSession().then(function(result) {
+            if (result.data.session && result.data.session.user) {
+                currentUser = result.data.session.user;
+                // Auto-fill booking form with authenticated user info
+                var nameInput = document.getElementById('booking-name');
+                var emailInput = document.getElementById('booking-email');
+                if (nameInput && currentUser.user_metadata && currentUser.user_metadata.full_name) {
+                    nameInput.value = currentUser.user_metadata.full_name;
+                }
+                if (emailInput && currentUser.email) {
+                    emailInput.value = currentUser.email;
+                }
+            }
+        });
+
+
+    var allPackages = [];
+    var selectedTimeSlot = null;
+    var currentUser = null;
+
+    
+
+
+
+    // Supabase init
+    
+    var allPackages = [];
+    var selectedTimeSlot = null;
+    var currentUser = null;
+
+    // =============================================
+    // NAVIGATION
+    // =============================================
+    window.showPage = function(page) {
+      // Auth guard for protected pages
+      var protectedPages = ['sessions', 'resources', 'intake'];
+      if (protectedPages.indexOf(page) !== -1 && !currentUser) {
+        login();
+        return;
+      }
+
+      var pages = ['packages', 'schedule', 'sessions', 'resources', 'confirmation', 'intake'];
+      pages.forEach(function(p) {
+        var el = document.getElementById('page-' + p);
+        if (el) el.classList.add('hidden');
+      });
+      var target = document.getElementById('page-' + page);
+      if (target) target.classList.remove('hidden');
+      
+      // Active nav
+      var navs = ['packages', 'schedule', 'sessions', 'resources', 'intake'];
+      navs.forEach(function(n) {
+        var navEl = document.getElementById('nav-' + n);
+        if (navEl) {
+          if (n === page) {
+            navEl.classList.remove('text-text-gray-400');
+            navEl.classList.add('text-harvest-green');
+          } else {
+            navEl.classList.add('text-text-gray-400');
+            navEl.classList.remove('text-harvest-green');
+          }
+        }
+      });
+      
+      // Load page data
+      if (page === 'sessions') window.loadClientSessions();
+      if (page === 'resources') window.loadClientResources();
+    };
+
+    // =============================================
+    // PACKAGES
+    // =============================================
+    window.loadPublicPackages = function() {
+      supabase.from('packages').select('*').order('price', { ascending: true }).then(function(result) {
+        if (result.error) { console.error(result.error); return; }
+        allPackages = result.data || [];
+        
+        // Populate packages grid
+        var grid = document.getElementById('packages-grid');
+        grid.innerHTML = allPackages.map(function(pkg, i) {
+          var popular = i === 1 ? '<span class="absolute -top-3 right-4 bg-brand-warm text-white text-xs px-3 py-1 rounded-full font-medium">Most Popular</span>' : '';
+          var features = [];
+          if (pkg.hours) features.push(pkg.hours + ' hours of coaching');
+          if (pkg.sessions) features.push(pkg.sessions + ' sessions');
+          if (pkg.weeks) features.push(pkg.weeks + ' weeks');
+          if (pkg.description) features.push(pkg.description);
+          
+          return '<div class="relative bg-harvest-surface border border-harvest-border rounded-xl p-6 hover:shadow-lg transition-shadow">' +
+            popular +
+            '<h3 class="font-bold text-lg mb-2">' + pkg.name + '</h3>' +
+            '<p class="text-3xl font-bold text-harvest-green mb-4">$' + pkg.price + '</p>' +
+            '<ul class="space-y-2 mb-6 text-sm text-text-gray-400">' +
+            features.map(function(f) { return '<li class="flex items-center gap-2"><span class="text-harvest-green">&#x2713;</span> ' + f + '</li>'; }).join('') +
+            '</ul>' +
+            '<button onclick="showPage(\'schedule\')" class="w-full py-2.5 bg-harvest-green hover:bg-harvest-green-hover text-white rounded-lg font-medium text-sm transition-colors">Book Now</button>' +
+          '</div>';
+        }).join('');
+        
+        // Populate schedule dropdown
+        var select = document.getElementById('book-package');
+        select.innerHTML = '<option value="">Choose a package...</option>' +
+          allPackages.map(function(p) {
+            return '<option value="' + p.id + '">' + p.name + ' - $' + p.price + ' (' + p.hours + ' hrs)</option>';
+          }).join('');
+      });
+    };
+
+    // =============================================
+    // SCHEDULING
+    // =============================================
+    window.handlePackageSelect = function() {
+      var select = document.getElementById('book-package');
+      if (select.value) {
+        document.getElementById('book-date').disabled = false;
+      }
+    };
+
+    window.handleDateSelect = function() {
+      var dateInput = document.getElementById('book-date');
+      var dateStr = dateInput.value;
+      if (!dateStr) return;
+      
+      var dayOfWeek = new Date(dateStr + 'T12:00:00').getDay();
+      
+      // Load availability slots for this day
+      supabase.from('availability_slots').select('*').eq('day_of_week', dayOfWeek).eq('is_active', true).then(function(result) {
+        var slots = result.data || [];
+        var grid = document.getElementById('time-slots-grid');
+        var container = document.getElementById('time-slots');
+        
+        if (slots.length === 0) {
+          grid.innerHTML = '<p class="text-text-gray-400 text-sm col-span-3">No availability on this day. Try another date.</p>';
+          container.classList.remove('hidden');
+          return;
+        }
+        
+        // Generate 30-min slots from available windows
+        var timeSlots = [];
+        slots.forEach(function(slot) {
+          var startH = parseInt(slot.start_time.split(':')[0]);
+          var startM = parseInt(slot.start_time.split(':')[1]);
+          var endH = parseInt(slot.end_time.split(':')[0]);
+          var endM = parseInt(slot.end_time.split(':')[1]);
+          var startMin = startH * 60 + startM;
+          var endMin = endH * 60 + endM;
+          for (var m = startMin; m < endMin; m += 30) {
+            var h = Math.floor(m / 60);
+            var min = m % 60;
+            var timeStr = (h < 10 ? '0' : '') + h + ':' + (min < 10 ? '0' : '') + min;
+            var display = h > 12 ? (h - 12) + ':' + (min < 10 ? '0' : '') + min + ' PM' : (h === 12 ? '12' : h) + ':' + (min < 10 ? '0' : '') + min + (h < 12 ? ' AM' : ' PM');
+            timeSlots.push({ time: timeStr, display: display });
+          }
+        });
+        
+        grid.innerHTML = timeSlots.map(function(ts) {
+          return '<button type="button" onclick="selectTimeSlot(this, \'' + ts.time + '\')" class="px-3 py-2 border border-harvest-border rounded-lg text-sm hover:border-harvest-green hover:text-harvest-green transition-colors">' + ts.display + '</button>';
+        }).join('');
+        container.classList.remove('hidden');
+      });
+    };
+
+    window.selectTimeSlot = function(btn, time) {
+      selectedTimeSlot = time;
+      // Remove selection from all
+      var buttons = document.querySelectorAll('#time-slots-grid button');
+      buttons.forEach(function(b) {
+        b.classList.remove('bg-harvest-green', 'text-white', 'border-harvest-green');
+      });
+      // Highlight selected
+      btn.classList.add('bg-harvest-green', 'text-white', 'border-harvest-green');
+      // Enable book button
+      document.getElementById('btn-book').disabled = false;
+    };
+
+    // =============================================
+    // AUTO-CREATE CLIENT
+    // =============================================
+    window.ensureClientRecord = function(coachId, clientName, clientEmail) {
+      return supabase.from('clients').select('id').eq('email', clientEmail).limit(1).then(function(existing) {
+        if (existing.data && existing.data.length > 0) {
+          return existing.data[0].id;
+        }
+        // Create new client
+        var clientData = {
+          coach_id: coachId,
+          name: clientName,
+          email: clientEmail,
+          status: 'active',
+          goals: ['Booked via client portal'], user_id: (currentUser ? currentUser.id : null),
+          created_at: new Date().toISOString()
+        };
+        return supabase.from('clients').insert(clientData).select('id').single().then(function(result) {
+          if (result.data) return result.data.id;
+          return null;
+        });
+      });
+    };
+
+    // =============================================
+    // BOOKING
+    // =============================================
+    window.confirmBooking = function() {
+      var packageId = document.getElementById('book-package').value;
+      var dateStr = document.getElementById('book-date').value;
+      var clientName = document.getElementById('booking-name').value.trim();
+      var clientEmail = document.getElementById('booking-email').value.trim();
+      
+      if (!packageId || !dateStr || !selectedTimeSlot) {
+        alert('Please select a package, date, and time.');
+        return;
+      }
+      if (!clientName || !clientEmail) {
+        alert('Please enter your name and email to book.');
+        return;
+      }
+      
+      var pkg = allPackages.filter(function(p) { return p.id === packageId; })[0];
+      var btn = document.getElementById('btn-book');
+      btn.disabled = true;
+      btn.textContent = 'Booking...';
+      
+      // Get coach
+      supabase.from('coaches').select('id').limit(1).single().then(function(coachResult) {
+        var coachId = coachResult.data ? coachResult.data.id : null;
+        if (!coachId) {
+          alert('Unable to book - coach not found.');
+          btn.disabled = false;
+          btn.textContent = 'Book Session';
+          return;
+        }
+        
+        // Auto-create or find client
+        window.ensureClientRecord(coachId, clientName, clientEmail).then(function(clientId) {
+          // Create booking
+          var bookingData = {
+            coach_id: coachId,
+            client_id: clientId,
+            package_id: packageId,
+            session_date: dateStr,
+            session_time: selectedTimeSlot,
+            duration_minutes: Math.round(pkg.hours * 60),
+            status: 'confirmed',
+            created_at: new Date().toISOString()
+          };
+          
+          supabase.from('bookings').insert(bookingData).then(function(result) {
+            if (result.error) {
+              alert('Booking error: ' + result.error.message);
+              btn.disabled = false;
+              btn.textContent = 'Book Session';
+              return;
+            }
+            
+            // Also create session record for Garden admin
+            var sessionData = {
+              coach_id: coachId,
+              client_id: clientId,
+              scheduled_at: dateStr + 'T' + selectedTimeSlot + ':00-07:00',
+              duration_minutes: Math.round(pkg.hours * 60),
+              mode: 'coaching',
+              status: 'scheduled',
+              prep_notes: 'Booked via client portal - ' + pkg.name
+            };
+            supabase.from('sessions').insert(sessionData).then(function() {
+              // Show confirmation
+              var confirmEl = document.getElementById('confirmation-details');
+              var dateObj = new Date(dateStr + 'T' + selectedTimeSlot + ':00');
+              confirmEl.innerHTML = '<p class="text-lg"><strong>' + pkg.name + '</strong></p>' +
+                '<p>' + dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) +
+                ' at ' + dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + '</p>' +
+                '<p class="text-sm mt-2">Confirmation sent to ' + clientEmail + '</p>';
+              window.showPage('confirmation');
+            });
+          });
+        });
+      });
+    };
+
+    // =============================================
+    // SESSIONS
+    // =============================================
+    window.loadClientSessions = function() {
+      var now = new Date().toISOString().split('T')[0];
+      
+      // Get bookings (upcoming)
+      supabase.from('bookings').select('*, packages(name)').gte('session_date', now).eq('status', 'confirmed').order('session_date', { ascending: true }).then(function(bookingsResult) {
+        var bookings = bookingsResult.data || [];
+        var upEl = document.getElementById('upcoming-sessions');
+        
+        if (bookings.length === 0) {
+          upEl.innerHTML = '<p class="text-text-gray-400 text-sm">No upcoming sessions.</p>';
+        } else {
+          upEl.innerHTML = bookings.map(function(b) {
+            var dateObj = new Date(b.session_date + 'T' + b.session_time + ':00');
+            var dateDisplay = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            var timeDisplay = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            var pkgName = b.packages ? b.packages.name : 'Session';
+            return '<div class="bg-harvest-surface border border-harvest-border rounded-xl p-4 flex items-center justify-between">' +
+              '<div class="flex items-center gap-4">' +
+                '<div class="text-2xl">&#x1F4C5;</div>' +
+                '<div>' +
+                  '<p class="font-medium">' + dateDisplay + ' at ' + timeDisplay + '</p>' +
+                  '<p class="text-sm text-text-gray-400">' + pkgName + ' - ' + b.duration_minutes + ' min</p>' +
+                '</div>' +
+              '</div>' +
+              '<div class="flex items-center gap-3">' +
+                '<span class="text-xs px-2 py-1 bg-harvest-green-light text-harvest-green rounded-full">' + b.status + '</span>' +
+                '<a href="#" class="text-sm text-harvest-green hover:underline">Join Zoom</a>' +
+              '</div>' +
+            '</div>';
+          }).join('');
+        }
+      });
+      
+      // Past sessions
+      var pastEl = document.getElementById('past-sessions');
+      supabase.from('sessions').select('*').lt('scheduled_at', new Date().toISOString()).order('scheduled_at', { ascending: false }).limit(10).then(function(pastResult) {
+        var past = pastResult.data || [];
+        if (past.length === 0) {
+          pastEl.innerHTML = '<p class="text-text-gray-400 text-sm">No past sessions yet.</p>';
+        } else {
+          pastEl.innerHTML = past.map(function(s) {
+            var dateObj = new Date(s.scheduled_at);
+            return '<div class="bg-harvest-surface border border-harvest-border rounded-xl p-4">' +
+              '<p class="font-medium">' + dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) + '</p>' +
+              '<p class="text-sm text-text-gray-400">' + (s.duration_minutes || 60) + ' min - ' + (s.mode || 'coaching') + '</p>' +
+            '</div>';
+          }).join('');
+        }
+      });
+    };
+
+    // =============================================
+    // RESOURCES
+    // =============================================
+    window.loadClientResources = function() {
+      supabase.from('resources').select('*').order('title').then(function(result) {
+        var resources = result.data || [];
+        var container = document.getElementById('client-resources-list');
+        container.innerHTML = resources.map(function(r) {
+          var icon = '&#x1F4D6;';
+          if (r.type === 'framework') icon = '&#x1F6E0;';
+          if (r.type === 'exercise') icon = '&#x1F4DD;';
+          if (r.type === 'book') icon = '&#x1F4DA;';
+          return '<div class="bg-harvest-surface border border-harvest-border rounded-xl p-5 hover:shadow-md transition-shadow">' +
+            '<div class="text-2xl mb-2">' + icon + '</div>' +
+            '<h4 class="font-semibold text-sm mb-1">' + r.title + '</h4>' +
+            '<p class="text-xs text-text-gray-400 mb-3">' + (r.description || '') + '</p>' +
+            '<span class="inline-block px-2 py-0.5 bg-harvest-elevated rounded text-xs text-text-gray-400">' + r.type + '</span>' +
+          '</div>';
+        }).join('');
+      });
+    };
+
+    // =============================================
+    // INTAKE FORM
+    // =============================================
+    var intakeForm = document.getElementById('intake-form');
+    if (intakeForm) {
+      intakeForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var formData = new FormData(intakeForm);
+        
+        var responses = {
+          vision_ideal_life: formData.get('q1') || '',
+          vision_what_changes: formData.get('q2') || '',
+          obstacle_biggest: formData.get('q3') || '',
+          obstacle_previous_attempts: formData.get('q4') || '',
+          readiness_scale: formData.get('q5') || '7',
+          life_areas: formData.getAll('q6'),
+          anything_else: formData.get('q7') || ''
+        };
+        
+        // Get coach
+        supabase.from('coaches').select('id').limit(1).single().then(function(coachResult) {
+          var coachId = coachResult.data ? coachResult.data.id : null;
+          
+          var responseData = {
+            form_id: null,
+            client_id: null,
+            coach_id: coachId,
+            responses: responses,
+            submitted_at: new Date().toISOString()
+          };
+          
+          supabase.from('intake_responses').insert(responseData).then(function(result) {
+            if (result.error) {
+              console.error('Intake save error:', result.error);
+              alert('Error submitting form. Please try again.');
+              return;
+            }
+            document.getElementById('intake-form-container').classList.add('hidden');
+            document.getElementById('intake-success').classList.remove('hidden');
+          });
+        });
+      });
+    }
+
+    // =============================================
+    // INIT
+    // =============================================
+    window.loadPublicPackages();
+    
+    // Set min date on date picker
+    var tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    var dateInput = document.getElementById('book-date');
+    if (dateInput) dateInput.min = tomorrow.toISOString().split('T')[0];
+    
+    // Set active nav
+    document.getElementById('nav-packages').classList.remove('text-text-gray-400');
+    document.getElementById('nav-packages').classList.add('text-harvest-green');
+  
+  
+    });
+    </script>
 </body>
 </html>
