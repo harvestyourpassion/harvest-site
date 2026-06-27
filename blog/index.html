@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog — Harvest Your Passion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: {
+                'harvest-bg': '#0f172a', 'harvest-surface': '#1e293b',
+                'harvest-elevated': '#334155', 'harvest-border': '#475569',
+                'harvest-text': '#e2e8f0', 'harvest-green': '#22c55e',
+            }}}
+        }
+    </script>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="bg-harvest-bg text-harvest-text min-h-screen">
+    <nav class="border-b border-harvest-border bg-harvest-surface/80 backdrop-blur-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <a href="/" class="flex items-center space-x-2">
+                    <span class="text-2xl">🌱</span>
+                    <span class="text-xl font-bold text-harvest-green">Harvest Your Passion</span>
+                </a>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="/coaching/" class="hover:text-harvest-green transition-colors">Coaching</a>
+                    <a href="/roots/" class="hover:text-harvest-green transition-colors">Roots</a>
+                    <a href="/blog/" class="hover:text-harvest-green transition-colors">Blog</a>
+                    <a href="/store/" class="hover:text-harvest-green transition-colors">Store</a>
+                    <a href="/about/" class="hover:text-harvest-green transition-colors">About</a>
+                </div>
+                <div id="auth-section">
+                    <button onclick="login()" class="bg-harvest-green hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors">Sign In</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <section class="py-20 px-4">
+        <div class="max-w-4xl mx-auto text-center">
+            <div class="text-6xl mb-6">📚</div>
+            <h1 class="text-4xl md:text-5xl font-bold mb-4">Blog</h1>
+            <p class="text-xl text-gray-400 mb-8">Articles, frameworks, and insights from experience, books, and connecting the dots.</p>
+            <div class="bg-harvest-surface border border-harvest-border rounded-xl p-8 mt-8">
+                <p class="text-harvest-green font-medium">🚧 Coming Soon</p>
+                <p class="text-gray-400 mt-2">This section is being built. Check back soon!</p>
+            </div>
+        </div>
+    </section>
+    <footer class="border-t border-harvest-border py-8 px-4 mt-auto">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center">
+            <p class="text-gray-500">© 2026 Harvest Your Passion LLC. All rights reserved.</p>
+            <div class="flex space-x-6 mt-4 md:mt-0">
+                <a href="/" class="text-gray-500 hover:text-harvest-green transition-colors">Home</a>
+                <a href="/about/" class="text-gray-500 hover:text-harvest-green transition-colors">About</a>
+            </div>
+        </div>
+    </footer>
+    <script src="/auth.js"></script>
+</body>
+</html>
