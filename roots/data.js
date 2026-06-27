@@ -1,104 +1,50 @@
 // ===== SUPABASE DATA LAYER FOR ROOTS =====
-// This replaces localStorage with Supabase cloud storage
-// Falls back to localStorage when offline
+// Uses shared window.sb client from /shared/supabase.js
+// Auth handled by shared global nav — no local auth screen needed
 
-var SUPABASE_URL = 'https://rjjhuugtwwimsijnmvwy.supabase.co';
-var SUPABASE_ANON_KEY = 'sb_publishable_byBhBgIBRNdGKe_G1CY6UQ_nQAQ2fsh';
-var sb = null; // supabase client (initialized after script loads)
+var sb = null;
 var currentUser = null;
 var currentProfileId = null;
 var isOnline = true;
 
 // ===== INIT =====
 function initSupabase(){
-  if(window.supabase){
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    sb.auth.onAuthStateChange(function(event, session){
-      if(event === 'SIGNED_IN' && session){
-        currentUser = session.user;
-        loadUserProfile();
-      } else if(event === 'SIGNED_OUT'){
-        currentUser = null;
-        currentProfileId = null;
-        showAuthScreen();
-      }
-    });
-    // Check existing session
-    sb.auth.getSession().then(function(result){
-      var session = result.data.session;
-      if(session){
-        currentUser = session.user;
-        loadUserProfile();
-      } else {
-        showAuthScreen();
-      }
-    });
-  } else {
-    console.error("Supabase JS not loaded");
+  sb = window.sb || null;
+  if(!sb){
+    console.error("Shared Supabase client not found (window.sb)");
     isOnline = false;
     fallbackToLocal();
+    return;
   }
-}
-
-// ===== AUTH =====
-function showAuthScreen(){
-  var content = document.getElementById("content");
-  document.getElementById("mainTabNav").innerHTML = "";
-  document.getElementById("subTabNav").innerHTML = "";
-  document.getElementById("filterBar").style.display = "none";
-  var html = '<div class="flex flex-col items-center justify-center min-h-[70vh]">';
-  html += '<div class="surface rounded-xl p-8 border border-c w-full max-w-sm">';
-  html += '<div class="text-center mb-6"><i class="fas fa-seedling text-4xl text-blue-400"></i><h1 class="text-xl font-bold mt-2">Roots</h1><p class="text-slate-400 text-sm">Your personal operating system</p></div>';
-  html += '<div id="authForm">';
-  html += '<input id="authEmail" type="email" placeholder="Email" class="w-full text-sm mb-3">';
-  html += '<input id="authPassword" type="password" placeholder="Password" class="w-full text-sm mb-3">';
-  html += '<button onclick="doSignIn()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-medium text-sm mb-2">Sign In</button>';
-  html += '<button onclick="doSignUp()" class="w-full elevated hover:bg-slate-500 py-2 rounded text-sm mb-3">Create Account</button>';
-  html += '<p id="authError" class="text-red-400 text-xs hidden"></p>';
-  html += '<div class="text-center mt-3"><button onclick="fallbackToLocal()" class="text-xs text-slate-500 hover:text-slate-300">Use offline (localStorage)</button></div>';
-  html += '</div>';
-  html += '</div></div>';
-  content.innerHTML = html;
-}
-
-function doSignIn(){
-  var email = document.getElementById("authEmail").value.trim();
-  var password = document.getElementById("authPassword").value;
-  if(!email || !password){showAuthError("Enter email and password");return;}
-  sb.auth.signInWithPassword({email: email, password: password}).then(function(result){
-    if(result.error){
-      showAuthError(result.error.message);
+  // Listen for auth state changes from the shared nav
+  sb.auth.onAuthStateChange(function(event, session){
+    if(event === 'SIGNED_IN' && session){
+      currentUser = session.user;
+      loadUserProfile();
+    } else if(event === 'SIGNED_OUT'){
+      currentUser = null;
+      currentProfileId = null;
+      state = {items:[],mainTabs:[],subTabs:[],sections:[],kpiWidgets:[],settings:{}};
+      render();
     }
-    // onAuthStateChange handles the rest
   });
-}
-
-function doSignUp(){
-  var email = document.getElementById("authEmail").value.trim();
-  var password = document.getElementById("authPassword").value;
-  if(!email || !password){showAuthError("Enter email and password");return;}
-  if(password.length < 6){showAuthError("Password must be at least 6 characters");return;}
-  sb.auth.signUp({email: email, password: password}).then(function(result){
-    if(result.error){
-      showAuthError(result.error.message);
+  // Check existing session
+  sb.auth.getSession().then(function(result){
+    var session = result.data.session;
+    if(session){
+      currentUser = session.user;
+      loadUserProfile();
     } else {
-      showAuthError("Account created! Check your email to confirm, then sign in.");
-      document.getElementById("authError").classList.remove("text-red-400");
-      document.getElementById("authError").classList.add("text-green-400");
+      // Not logged in — shared nav handles login UI
+      // If requireAuth exists (from shared/supabase.js), use it
+      if(typeof requireAuth === "function") requireAuth('/roots/');
+      else fallbackToLocal();
     }
   });
 }
 
 function doSignOut(){
-  sb.auth.signOut();
-}
-
-function showAuthError(msg){
-  var el = document.getElementById("authError");
-  el.textContent = msg;
-  el.classList.remove("hidden");
-  el.classList.remove("text-green-400");
-  el.classList.add("text-red-400");
+  if(sb) sb.auth.signOut();
 }
 
 // ===== PROFILE LOADING =====
