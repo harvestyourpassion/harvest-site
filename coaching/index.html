@@ -259,6 +259,11 @@
     <script src="/auth.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Supabase client for coaching pages
+        var SUPABASE_URL = 'https://rjjhuugtwwimsijnmvwy.supabase.co';
+        var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJqamh1dWd0d3dpbXNpam5tdnd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MjE5MDksImV4cCI6MjA5ODA5NzkwOX0.1Dl5E5yD_hQOR1CWNAgORqRRuV88jPG6NkY7IfWacO0';
+        var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
         var allPackages = [];
         var selectedTimeSlot = null;
         var currentUser = null;
