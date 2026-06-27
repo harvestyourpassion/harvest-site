@@ -1,0 +1,12 @@
+/* shared/nav.css — Optional hover/responsive styles for global nav */
+#harvest-global-nav a:hover {
+    color: #4ade80 !important;
+}
+#harvest-global-nav button:hover {
+    border-color: #22c55e !important;
+}
+@media (max-width: 768px) {
+    #harvest-global-nav > div > div:last-child {
+        display: none;
+    }
+}
