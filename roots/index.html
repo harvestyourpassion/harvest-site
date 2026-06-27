@@ -1,70 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roots — Harvest Your Passion</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'harvest-bg': '#0f172a',
-                        'harvest-surface': '#1e293b',
-                        'harvest-elevated': '#334155',
-                        'harvest-border': '#475569',
-                        'harvest-text': '#e2e8f0',
-                        'harvest-green': '#22c55e',
-                    }
-                }
-            }
-        }
-    </script>
-    <link rel="stylesheet" href="/styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roots</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-harvest-bg text-harvest-text min-h-screen">
-    <nav class="border-b border-harvest-border bg-harvest-surface/80 backdrop-blur-sm sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <a href="/" class="flex items-center space-x-2">
-                    <span class="text-2xl">🌱</span>
-                    <span class="text-xl font-bold text-harvest-green">Harvest Your Passion</span>
-                </a>
-                <div class="hidden md:flex items-center space-x-8">
-                    <a href="/coaching/" class="hover:text-harvest-green transition-colors">Coaching</a>
-                    <a href="/roots/" class="hover:text-harvest-green transition-colors">Roots</a>
-                    <a href="/blog/" class="hover:text-harvest-green transition-colors">Blog</a>
-                    <a href="/store/" class="hover:text-harvest-green transition-colors">Store</a>
-                    <a href="/about/" class="hover:text-harvest-green transition-colors">About</a>
-                </div>
-                <div id="auth-section">
-                    <button onclick="login()" class="bg-harvest-green hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors">Sign In</button>
-                </div>
-            </div>
-        </div>
-    </nav>
-    <section class="py-20 px-4">
-        <div class="max-w-4xl mx-auto text-center">
-            <div class="text-6xl mb-6">🌳</div>
-            <h1 class="text-4xl md:text-5xl font-bold mb-4">Roots</h1>
-            <p class="text-xl text-gray-400 mb-8">Your personal operating system. Track goals, habits, finances, and growth — all in one place.</p>
-            <div class="bg-harvest-surface border border-harvest-border rounded-xl p-8 mt-8">
-                <p class="text-harvest-green font-medium">🚧 Coming Soon</p>
-                <p class="text-gray-400 mt-2">This section is being built. Check back soon!</p>
-            </div>
-        </div>
-    </section>
-    <footer class="border-t border-harvest-border py-8 px-4 mt-auto">
-        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center">
-            <p class="text-gray-500">© 2026 Harvest Your Passion LLC. All rights reserved.</p>
-            <div class="flex space-x-6 mt-4 md:mt-0">
-                <a href="/" class="text-gray-500 hover:text-harvest-green transition-colors">Home</a>
-                <a href="/about/" class="text-gray-500 hover:text-harvest-green transition-colors">About</a>
-            </div>
-        </div>
-    </footer>
-    <script src="/auth.js"></script>
+<body class="min-h-screen">
+
+<!-- Header -->
+<header class="surface border-b border-c px-4 py-2 flex items-center justify-between sticky top-0 z-50">
+<div class="flex items-center gap-3">
+<button class="hamburger text-xl p-2" onclick="toggleMobileNav()"><i class="fas fa-bars"></i></button>
+<h1 class="text-lg font-bold text-blue-400"><i class="fas fa-seedling mr-2"></i>Roots</h1>
+</div>
+<div class="flex items-center gap-2">
+<span id="undoBtn" class="hidden"><button onclick="doUndo()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded text-sm"><i class="fas fa-undo mr-1"></i>Undo</button></span>
+<button onclick="showNotifications()" class="relative p-2 hover:bg-slate-700 rounded" style="min-width:44px;min-height:44px"><i class="fas fa-bell text-lg"></i><span id="notifBadge" class="hidden absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"></span></button>
+<div class="relative"><button onclick="toggleProfileMenu()" class="flex items-center gap-2 px-3 py-1 rounded hover:bg-slate-700" style="min-height:44px"><i class="fas fa-user-circle text-lg"></i><span id="profileName" class="text-sm hidden sm:inline">Leo</span></button>
+<div id="profileMenu" class="hidden absolute right-0 top-full mt-1 surface border border-c rounded-lg shadow-xl w-56 z-50 p-2"></div></div>
+</div>
+</header>
+
+<!-- Main Tab Nav -->
+<nav id="mainTabNav" class="surface border-b border-c px-2 flex items-center overflow-x-auto desk-nav" style="min-height:44px">
+</nav>
+
+<!-- Sub Tab Nav -->
+<nav id="subTabNav" class="elevated border-b border-c px-2 py-1 flex items-center gap-1 overflow-x-auto flex-wrap" style="min-height:40px">
+</nav>
+
+<!-- Filter Bar -->
+<div id="filterBar" class="surface border-b border-c px-3 py-2 flex flex-wrap items-center gap-2 text-sm">
+<select id="filterStatus" onchange="applyFilters()" class="text-xs py-1"><option value="">Status</option><option>Active</option><option>To Do</option><option>In Progress</option><option>Done</option><option>Paused</option><option>Future</option></select>
+<select id="filterPriority" onchange="applyFilters()" class="text-xs py-1"><option value="">Priority</option><option>High</option><option>Medium</option><option>Low</option></select>
+<select id="filterType" onchange="applyFilters()" class="text-xs py-1"><option value="">Type</option><option>Task</option><option>Goal</option><option>Habit</option><option>Routine</option><option>Project</option><option>Idea</option><option>Book</option><option>Bill</option><option>Debt</option><option>Asset</option><option>Income</option><option>Contact</option></select>
+<button onclick="clearFilters()" class="text-xs text-slate-400 hover:text-white px-2 py-1"><i class="fas fa-times mr-1"></i>Clear</button>
+<span class="text-slate-500">|</span>
+<select id="sortBy" onchange="applyFilters()" class="text-xs py-1"><option value="">Sort</option><option value="priority">Priority</option><option value="dueDate">Due Date</option><option value="status">Status</option><option value="alpha">A-Z</option><option value="recent">Recent</option></select>
+<select id="groupBy" onchange="applyFilters()" class="text-xs py-1"><option value="">Group by</option><option value="status">Status</option><option value="priority">Priority</option><option value="type">Type</option></select>
+</div>
+
+<!-- Content Area -->
+<main id="content" class="p-3 md:p-4 max-w-7xl mx-auto"></main>
+
+<!-- Add Item FAB -->
+<button onclick="showAddItem()" class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-500 rounded-full shadow-lg flex items-center justify-center text-2xl z-40"><i class="fas fa-plus"></i></button>
+
+<!-- Modal Container -->
+<div id="modal" class="hidden fixed inset-0 modal-bg z-50 flex items-center justify-center p-4" onclick="if(event.target===this)closeModal()">
+<div id="modalContent" class="surface rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-5"></div>
+</div>
+
+<!-- Notification Panel -->
+<div id="notifPanel" class="hidden fixed inset-0 modal-bg z-50 flex justify-end" onclick="if(event.target===this)closeNotifPanel()">
+<div class="surface w-full max-w-sm h-full overflow-y-auto p-4 border-l border-c">
+<div class="flex items-center justify-between mb-4"><h3 class="text-lg font-bold"><i class="fas fa-bell mr-2"></i>Notifications</h3><button onclick="closeNotifPanel()" class="p-2 hover:bg-slate-700 rounded"><i class="fas fa-times"></i></button></div>
+<div id="notifList"></div>
+</div>
+</div>
+
+<script src="ui.js"></script>
+<script src="app.js"></script>
+<script src="data.js"></script>
+<script>
+initApp();
+document.getElementById("profileName").textContent = currentProfile;
+</script>
 </body>
 </html>
