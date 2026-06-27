@@ -1,0 +1,2 @@
+# Netlify redirects — handle clean URLs
+# Each route has its own index.html, so no catch-all SPA redirect needed yet

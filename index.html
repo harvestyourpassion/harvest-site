@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harvest Your Passion — Cultivate Success</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'harvest-bg': '#0f172a',
+                        'harvest-surface': '#1e293b',
+                        'harvest-elevated': '#334155',
+                        'harvest-border': '#475569',
+                        'harvest-text': '#e2e8f0',
+                        'harvest-green': '#22c55e',
+                        'harvest-orange': '#f97316',
+                        'harvest-blue': '#3b82f6',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="bg-black text-white min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-black border-b border-gray-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <a href="/" class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-harvest-green rounded-full flex items-center justify-center">
+                        <span class="text-lg">🌱</span>
+                    </div>
+                    <span class="text-lg font-semibold text-white">Harvest Your Passion</span>
+                </a>
+
+                <!-- Nav Links -->
+                <div class="hidden md:flex items-center space-x-6 text-sm">
+                    <a href="/" class="text-white hover:text-harvest-green transition-colors">Home</a>
+                    <a href="/about/" class="text-gray-300 hover:text-harvest-green transition-colors">Our Story</a>
+                    <a href="/coaching/" class="text-gray-300 hover:text-harvest-green transition-colors">Explore Packages</a>
+                    <a href="/roots/" class="text-gray-300 hover:text-harvest-green transition-colors">Roots</a>
+                    <a href="/blog/" class="text-gray-300 hover:text-harvest-green transition-colors">Blog</a>
+                    <a href="/store/" class="text-gray-300 hover:text-harvest-green transition-colors">Store</a>
+                </div>
+
+                <!-- Auth Button -->
+                <div class="flex items-center space-x-4">
+                    <div id="auth-section">
+                        <button onclick="login()" class="border border-gray-600 hover:border-harvest-green text-white px-4 py-1.5 rounded-full text-sm font-medium transition-colors">
+                            Log In
+                        </button>
+                    </div>
+                    <!-- Mobile menu button -->
+                    <button onclick="toggleMobileMenu()" class="md:hidden text-white">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden border-t border-gray-800">
+            <div class="px-4 py-3 space-y-2">
+                <a href="/" class="block py-2 text-white">Home</a>
+                <a href="/about/" class="block py-2 text-gray-300">Our Story</a>
+                <a href="/coaching/" class="block py-2 text-gray-300">Explore Packages</a>
+                <a href="/roots/" class="block py-2 text-gray-300">Roots</a>
+                <a href="/blog/" class="block py-2 text-gray-300">Blog</a>
+                <a href="/store/" class="block py-2 text-gray-300">Store</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section — Full width with background image -->
+    <section class="relative min-h-[80vh] flex items-center justify-center" style="background: linear-gradient(135deg, rgba(15,23,42,0.7), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80') center/cover no-repeat;">
+        <div class="max-w-3xl mx-auto text-center px-4 py-20">
+            <h1 class="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+                "Harvest Your Passion,<br>
+                <span class="ml-8">Cultivate Success!"</span>
+            </h1>
+            <p class="text-lg md:text-xl text-gray-200 mb-8 leading-relaxed">
+                I develop businesses, products, and people. Nothing I share is new — I translate timeless principles for today. Through coaching, tools, and content, I help people gain clarity, build systems that work for them, and take action on what matters most. You can do anything in life — just not everything. I help you figure out which one, and how.
+            </p>
+            <a href="/about/" class="inline-block text-white underline underline-offset-4 hover:text-harvest-green transition-colors text-lg">
+                Learn more about us!
+            </a>
+        </div>
+    </section>
+
+    <!-- Coaching Packages Section -->
+    <section class="grid md:grid-cols-2">
+        <!-- Deep Work Sessions -->
+        <div class="relative min-h-[500px] flex flex-col justify-center items-center text-center p-8" style="background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=960&q=80') center/cover no-repeat;">
+            <h2 class="text-3xl md:text-4xl font-bold mb-4 bg-white text-black px-4 py-1 inline-block">Deep Work Sessions</h2>
+            <p class="text-gray-100 max-w-md mb-8 leading-relaxed">
+                For individuals ready to get unstuck. Whether it's a single 2-hour deep dive or a focused sprint over 6 weeks, these sessions combine structured coaching with personal development conversation. You leave with clarity, a plan, and accountability.
+            </p>
+            <a href="/coaching/" class="border border-white hover:bg-white hover:text-black text-white px-6 py-2 rounded transition-colors font-medium">
+                Learn More
+            </a>
+        </div>
+
+        <!-- Full Transformation -->
+        <div class="relative min-h-[500px] flex flex-col justify-center items-center text-center p-8" style="background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=960&q=80') center/cover no-repeat;">
+            <h2 class="text-3xl md:text-4xl font-bold mb-4 bg-white text-black px-4 py-1 inline-block">Full Transformation</h2>
+            <p class="text-gray-100 max-w-md mb-8 leading-relaxed">
+                For those committed to real change over time. The Transformation Track is 6 months of partnership — coaching, personal development, shared resources, and consistent accountability. This is where lasting breakthroughs happen.
+            </p>
+            <a href="/coaching/" class="border border-white hover:bg-white hover:text-black text-white px-6 py-2 rounded transition-colors font-medium">
+                Learn More
+            </a>
+        </div>
+    </section>
+
+    <!-- Tools Section -->
+    <section class="py-20 px-4 bg-harvest-bg">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl font-bold text-center mb-4 text-white">Tools for Growth</h2>
+            <p class="text-gray-400 text-center mb-12 max-w-2xl mx-auto">Beyond coaching — systems and resources to keep you moving forward.</p>
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Roots -->
+                <a href="/roots/" class="bg-harvest-surface p-6 rounded-xl border border-harvest-border hover:border-harvest-green transition-all group hover:-translate-y-1">
+                    <div class="text-3xl mb-4">🌳</div>
+                    <h3 class="text-xl font-semibold mb-2 group-hover:text-harvest-green text-white">Roots</h3>
+                    <p class="text-gray-400">Your personal operating system. Track goals, habits, finances, and growth — all in one place.</p>
+                </a>
+
+                <!-- Blog -->
+                <a href="/blog/" class="bg-harvest-surface p-6 rounded-xl border border-harvest-border hover:border-harvest-green transition-all group hover:-translate-y-1">
+                    <div class="text-3xl mb-4">📚</div>
+                    <h3 class="text-xl font-semibold mb-2 group-hover:text-harvest-green text-white">Blog</h3>
+                    <p class="text-gray-400">Articles, frameworks, and insights from experience, books, and connecting the dots.</p>
+                </a>
+
+                <!-- Store -->
+                <a href="/store/" class="bg-harvest-surface p-6 rounded-xl border border-harvest-border hover:border-harvest-green transition-all group hover:-translate-y-1">
+                    <div class="text-3xl mb-4">🛒</div>
+                    <h3 class="text-xl font-semibold mb-2 group-hover:text-harvest-green text-white">Store</h3>
+                    <p class="text-gray-400">Templates, courses, and digital products to accelerate your growth.</p>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Connect Section -->
+    <section class="py-16 px-4 bg-black">
+        <div class="max-w-4xl mx-auto text-center">
+            <h2 class="text-3xl font-bold mb-8 text-white">Connect</h2>
+            <div class="flex justify-center space-x-8">
+                <a href="https://www.facebook.com/profile.php?id=61567883879561" target="_blank" class="text-gray-400 hover:text-harvest-green transition-colors text-lg">Facebook</a>
+                <a href="https://www.instagram.com/harvest_your_passion/" target="_blank" class="text-gray-400 hover:text-harvest-green transition-colors text-lg">Instagram</a>
+                <a href="http://www.linkedin.com/in/leandro-castillo-8891b5a1" target="_blank" class="text-gray-400 hover:text-harvest-green transition-colors text-lg">LinkedIn</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-800 py-8 px-4 bg-black">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center">
+            <p class="text-gray-500 text-sm">© 2026 Harvest Your Passion LLC. All rights reserved.</p>
+            <div class="flex space-x-6 mt-4 md:mt-0">
+                <a href="/about/" class="text-gray-500 hover:text-harvest-green transition-colors text-sm">Our Story</a>
+                <a href="/coaching/" class="text-gray-500 hover:text-harvest-green transition-colors text-sm">Coaching</a>
+                <a href="/roots/" class="text-gray-500 hover:text-harvest-green transition-colors text-sm">Roots</a>
+                <a href="/blog/" class="text-gray-500 hover:text-harvest-green transition-colors text-sm">Blog</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/auth.js"></script>
+    <script>
+        function toggleMobileMenu() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        }
+    </script>
+</body>
+</html>
