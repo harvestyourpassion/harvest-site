@@ -16,7 +16,9 @@ function injectHarvestNav() {
     else if (path === '/') section = 'home';
 
     var sectionLabels = { roots: 'Roots', coaching: 'Coaching', blog: 'Blog', store: 'Store', about: 'About' };
+    var sectionColors = { roots: '#3b82f6', coaching: '#22c55e', blog: '#f97316', store: '#a855f7', about: '#64748b' };
     var sectionLabel = sectionLabels[section] || '';
+    var sectionColor = sectionColors[section] || '#4ade80';
 
     function lc(s) { return section === s ? '#4ade80' : '#d1d5db'; }
 
@@ -25,7 +27,7 @@ function injectHarvestNav() {
         '<a href="/" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;">' +
             '<span style="font-size:1.25rem;">\ud83c\udf31</span>' +
             '<span style="font-size:1rem;font-weight:700;color:#e2e8f0;">Harvest Your Passion</span>' +
-            (section && section !== 'home' ? '<span style="color:#64748b;margin:0 0.3rem;font-weight:300;">&mdash;</span><span style="font-size:1rem;font-weight:700;color:#4ade80;">' + sectionLabel + '</span>' : '') +
+            (section && section !== 'home' ? '<span style="color:#64748b;margin:0 0.3rem;font-weight:300;">&mdash;</span><span style="font-size:1rem;font-weight:700;color:' + sectionColor + ';">' + sectionLabel + '</span>' : '') +
         '</a>' +
         '<div style="display:flex;align-items:center;gap:1.25rem;font-size:0.8rem;">' +
             '<a href="/" style="text-decoration:none;color:' + lc('home') + ';">Home</a>' +
