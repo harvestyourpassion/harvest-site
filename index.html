@@ -6,6 +6,8 @@
     <title>Harvest Your Passion — Cultivate Success</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/shared/supabase.js"></script>
+    <script src="/shared/nav.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -27,57 +29,6 @@
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="bg-black text-white min-h-screen">
-    <!-- Navigation -->
-    <nav class="bg-black border-b border-gray-800 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <!-- Logo -->
-                <a href="/" class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-harvest-green rounded-full flex items-center justify-center">
-                        <span class="text-lg">🌱</span>
-                    </div>
-                    <span class="text-lg font-semibold text-white">Harvest Your Passion</span>
-                </a>
-
-                <!-- Nav Links -->
-                <div class="hidden md:flex items-center space-x-6 text-sm">
-                    <a href="/" class="text-white hover:text-harvest-green transition-colors">Home</a>
-                    <a href="/about/" class="text-gray-300 hover:text-harvest-green transition-colors">Our Story</a>
-                    <a href="/coaching/" class="text-gray-300 hover:text-harvest-green transition-colors">Explore Packages</a>
-                    <a href="/roots/" class="text-gray-300 hover:text-harvest-green transition-colors">Roots</a>
-                    <a href="/blog/" class="text-gray-300 hover:text-harvest-green transition-colors">Blog</a>
-                    <a href="/store/" class="text-gray-300 hover:text-harvest-green transition-colors">Store</a>
-                </div>
-
-                <!-- Auth Button -->
-                <div class="flex items-center space-x-4">
-                    <div id="auth-section">
-                        <button onclick="login()" class="border border-gray-600 hover:border-harvest-green text-white px-4 py-1.5 rounded-full text-sm font-medium transition-colors">
-                            Log In
-                        </button>
-                    </div>
-                    <!-- Mobile menu button -->
-                    <button onclick="toggleMobileMenu()" class="md:hidden text-white">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Mobile Menu -->
-        <div id="mobile-menu" class="hidden md:hidden border-t border-gray-800">
-            <div class="px-4 py-3 space-y-2">
-                <a href="/" class="block py-2 text-white">Home</a>
-                <a href="/about/" class="block py-2 text-gray-300">Our Story</a>
-                <a href="/coaching/" class="block py-2 text-gray-300">Explore Packages</a>
-                <a href="/roots/" class="block py-2 text-gray-300">Roots</a>
-                <a href="/blog/" class="block py-2 text-gray-300">Blog</a>
-                <a href="/store/" class="block py-2 text-gray-300">Store</a>
-            </div>
-        </div>
-    </nav>
 
     <!-- Hero Section — Full width with background image -->
     <section class="relative min-h-[80vh] flex items-center justify-center" style="background: linear-gradient(135deg, rgba(15,23,42,0.7), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1920&q=80') center/cover no-repeat;">
@@ -175,11 +126,5 @@
         </div>
     </footer>
 
-    <script src="/auth.js"></script>
-    <script>
-        function toggleMobileMenu() {
-            document.getElementById('mobile-menu').classList.toggle('hidden');
-        }
-    </script>
 </body>
 </html>
