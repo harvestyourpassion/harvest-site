@@ -56,12 +56,39 @@ function injectHarvestNav() {
     }
 }
 
+// Global display name — single source of truth across all pages
+// Priority: Supabase roots_profiles.name > Google metadata > email
+window.harvestDisplayName = null;
+
 function getDisplayName(user) {
-    // Priority: window.userDisplayName (set by Roots) > Google metadata > email
+    // If we already loaded from Supabase, use that
+    if (window.harvestDisplayName) return window.harvestDisplayName;
+    // Fallback to window.userDisplayName (set by Roots legacy)
     if (window.userDisplayName) return window.userDisplayName;
+    // Fallback to Google metadata
     if (user && user.user_metadata && user.user_metadata.full_name) return user.user_metadata.full_name;
+    // Fallback to email prefix
     if (user && user.email) return user.email.split('@')[0];
     return 'User';
+}
+
+// Load saved name from Supabase roots_profiles
+function loadSavedName(userId) {
+    var client = window.getSb ? window.getSb() : null;
+    if (!client || !userId) return;
+
+    client.from('roots_profiles')
+        .select('name')
+        .eq('user_id', userId)
+        .maybeSingle()
+        .then(function(result) {
+            if (result.data && result.data.name) {
+                window.harvestDisplayName = result.data.name;
+                // Also set window.userDisplayName so Roots picks it up
+                window.userDisplayName = result.data.name;
+                updateNavAuth();
+            }
+        });
 }
 
 function toggleProfileDropdown() {
@@ -79,13 +106,17 @@ function editDisplayName() {
     var newName = prompt('Edit your display name:', currentName);
     if (newName && newName.trim() && newName !== currentName) {
         newName = newName.trim();
+        // Update all name sources
+        window.harvestDisplayName = newName;
         window.userDisplayName = newName;
+
         // Save to Supabase roots_profiles
         var client = window.getSb ? window.getSb() : null;
         if (client && window._harvestCurrentUser) {
+            var userId = window._harvestCurrentUser.id;
+            // Upsert - create profile if doesn't exist, update if it does
             client.from('roots_profiles')
-                .update({ name: newName })
-                .eq('user_id', window._harvestCurrentUser.id)
+                .upsert({ user_id: userId, name: newName }, { onConflict: 'user_id' })
                 .then(function() {
                     updateNavAuth();
                     closeProfileDropdown();
@@ -106,6 +137,13 @@ function updateNavAuth() {
             if (session) {
                 var user = session.user;
                 window._harvestCurrentUser = user;
+
+                // Load saved name from DB (only once)
+                if (!window._harvestNameLoaded) {
+                    window._harvestNameLoaded = true;
+                    loadSavedName(user.id);
+                }
+
                 var name = getDisplayName(user);
                 var email = user.email || '';
 
@@ -156,16 +194,19 @@ if (document.readyState === 'loading') {
 setTimeout(function() {
     if (window.getSb && window.getSb()) {
         window.getSb().auth.onAuthStateChange(function() {
+            window._harvestNameLoaded = false; // reload name on auth change
             updateNavAuth();
         });
     }
 }, 300);
 
-// Re-update nav when Roots sets userDisplayName
-var _origUserDisplayName = undefined;
+// Sync: if Roots (or anything) changes userDisplayName, update nav
+var _lastKnownName = undefined;
 setInterval(function() {
-    if (window.userDisplayName !== _origUserDisplayName) {
-        _origUserDisplayName = window.userDisplayName;
+    var current = window.userDisplayName || window.harvestDisplayName;
+    if (current !== _lastKnownName) {
+        _lastKnownName = current;
+        if (current) window.harvestDisplayName = current;
         updateNavAuth();
     }
 }, 1000);
