@@ -597,25 +597,43 @@ function closeNotifPanel(){document.getElementById("notifPanel").classList.add("
 function toggleProfileMenu(){
   var menu = document.getElementById("profileMenu");
   if(menu.classList.contains("hidden")){
-    var profiles = loadProfiles() || {};
-    var names = Object.keys(profiles);
-    var html = '<div class="text-xs text-slate-400 mb-2 uppercase font-semibold">Profiles</div>';
-    for(var i=0;i<names.length;i++){
-      html += '<button onclick="switchProfile(\'' + names[i] + '\')" class="w-full text-left px-3 py-2 rounded hover:bg-slate-600 text-sm flex items-center justify-between' + (names[i]===currentProfile?" text-blue-400":"") + '">' + names[i] + (names[i]===currentProfile?' <i class="fas fa-check"></i>':"") + '</button>';
-    }
-    html += '<hr class="border-c my-2">';
-    html += '<button onclick="showNewProfile()" class="w-full text-left px-3 py-2 rounded hover:bg-slate-600 text-sm"><i class="fas fa-plus mr-2"></i>New Profile</button>';
+    var html = '<div class="text-xs text-slate-400 mb-2 uppercase font-semibold">' + currentProfile + '</div>';
+    html += '<button onclick="showEditDisplayName()" class="w-full text-left px-3 py-2 rounded hover:bg-slate-600 text-sm"><i class="fas fa-pen mr-2"></i>Edit Display Name</button>';
     html += '<button onclick="exportProfile()" class="w-full text-left px-3 py-2 rounded hover:bg-slate-600 text-sm"><i class="fas fa-download mr-2"></i>Export</button>';
     html += '<button onclick="importProfile()" class="w-full text-left px-3 py-2 rounded hover:bg-slate-600 text-sm"><i class="fas fa-upload mr-2"></i>Import</button>';
     html += '<button onclick="exportTemplate()" class="w-full text-left px-3 py-2 rounded hover:bg-slate-600 text-sm"><i class="fas fa-share-from-square mr-2"></i>Export as Template</button>';
-    html += '<hr class="border-c my-2">';
-    html += '<button onclick="showPasswordSettings()" class="w-full text-left px-3 py-2 rounded hover:bg-slate-600 text-sm"><i class="fas fa-lock mr-2"></i>Password</button>';
     if(typeof doSignOut==="function" && currentUser) html += '<button onclick="doSignOut()" class="w-full text-left px-3 py-2 rounded hover:bg-slate-600 text-sm text-red-400"><i class="fas fa-sign-out-alt mr-2"></i>Sign Out</button>';
     menu.innerHTML = html;
     menu.classList.remove("hidden");
   } else {
     menu.classList.add("hidden");
   }
+}
+
+function showEditDisplayName(){
+  document.getElementById("profileMenu").classList.add("hidden");
+  var html = '<h2 class="text-lg font-bold mb-4"><i class="fas fa-pen mr-2 text-blue-400"></i>Edit Display Name</h2>';
+  html += '<div class="space-y-3">';
+  html += '<p class="text-xs text-slate-400">This name is shown in Roots and across the Harvest Your Passion site.</p>';
+  html += '<input id="editDisplayName" value="' + currentProfile + '" class="w-full text-sm" placeholder="Your display name">';
+  html += '<div class="flex gap-2"><button onclick="saveDisplayName()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded text-sm">Save</button><button onclick="closeModal()" class="flex-1 elevated py-2 rounded text-sm">Cancel</button></div>';
+  html += '</div>';
+  document.getElementById("modalContent").innerHTML = html;
+  document.getElementById("modal").classList.remove("hidden");
+}
+
+function saveDisplayName(){
+  var name = document.getElementById("editDisplayName").value.trim();
+  if(!name) return;
+  currentProfile = name;
+  document.getElementById("profileName").textContent = name;
+  // Save to Supabase
+  if(sb && currentProfileId){
+    sb.from('roots_profiles').update({name: name}).eq('id', currentProfileId);
+  }
+  // Expose for the global nav to use
+  window.userDisplayName = name;
+  closeModal();
 }
 
 function switchProfile(name){

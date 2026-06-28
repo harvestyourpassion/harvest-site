@@ -124,6 +124,7 @@ function loadFullProfile(profileId){
 
     document.getElementById("appHeader").classList.remove("hidden");
     document.getElementById("filterBar").style.display = "";
+    window.userDisplayName = currentProfile;
     render();
     updateNotifBadge();
     document.getElementById("profileName").textContent = currentProfile;
