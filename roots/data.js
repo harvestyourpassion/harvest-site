@@ -9,11 +9,27 @@ var isOnline = true;
 
 // ===== INIT =====
 function initSupabase(){
-  sb = window.sb || null;
+  sb = window.getSb ? window.getSb() : null;
   if(!sb){
-    console.error("Shared Supabase client not found (window.sb)");
-    isOnline = false;
-    fallbackToLocal();
+    // Retry after a moment (CDN might still be loading)
+    setTimeout(function(){
+      sb = window.getSb ? window.getSb() : null;
+      if(sb){
+        sb.auth.getSession().then(function(result){
+          var session = result.data.session;
+          if(session){
+            currentUser = session.user;
+            loadUserProfile();
+          } else {
+            if(typeof requireAuth === "function") requireAuth('/roots/');
+            else fallbackToLocal();
+          }
+        });
+      } else {
+        isOnline = false;
+        fallbackToLocal();
+      }
+    }, 200);
     return;
   }
   // Listen for auth state changes from the shared nav

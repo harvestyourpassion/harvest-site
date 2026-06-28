@@ -70,8 +70,10 @@
 <script src="app.js"></script>
 <script src="data.js"></script>
 <script>
-initApp();
-document.getElementById("profileName").textContent = currentProfile;
+document.addEventListener("DOMContentLoaded", function(){
+  initApp();
+  document.getElementById("profileName").textContent = currentProfile;
+});
 </script>
 </body>
 </html>
