@@ -1,80 +1,103 @@
-// shared/nav.js — Global navigation bar for Harvest Your Passion
+// shared/nav.js - Global navigation bar for Harvest Your Passion
 // Injects nav at top of page. Shows auth state + role-aware links.
-// Usage: <script src="/shared/nav.js"></script> (after supabase.js)
+// Usage: <script src="/shared/nav.js"></script> (works in head or body)
 // Dependencies: /shared/supabase.js must be loaded first
 
-(function() {
-    // Determine current section for highlighting
+function injectHarvestNav() {
+    if (document.getElementById('harvest-global-nav')) return; // already injected
+
     var path = window.location.pathname;
     var section = '';
-    if (path.startsWith('/roots')) section = 'roots';
-    else if (path.startsWith('/coaching')) section = 'coaching';
-    else if (path.startsWith('/blog')) section = 'blog';
-    else if (path.startsWith('/store')) section = 'store';
-    else if (path.startsWith('/about')) section = 'about';
+    if (path.indexOf('/roots') === 0) section = 'roots';
+    else if (path.indexOf('/coaching') === 0) section = 'coaching';
+    else if (path.indexOf('/blog') === 0) section = 'blog';
+    else if (path.indexOf('/store') === 0) section = 'store';
+    else if (path.indexOf('/about') === 0) section = 'about';
     else if (path === '/') section = 'home';
 
-    function activeClass(s) {
-        return section === s ? 'text-green-400' : 'text-gray-300 hover:text-green-400';
+    function linkColor(s) {
+        return section === s ? '#4ade80' : '#d1d5db';
     }
 
-    // Build nav HTML
-    var navHTML = '<nav id="harvest-global-nav" style="border-bottom:1px solid #475569;background:rgba(30,41,59,0.95);backdrop-filter:blur(8px);position:sticky;top:0;z-index:9999;font-family:system-ui,-apple-system,sans-serif;">' +
-        '<div style="max-width:1280px;margin:0 auto;padding:0 1rem;display:flex;justify-content:space-between;align-items:center;height:56px;">' +
+    var navHTML = '<nav id="harvest-global-nav" style="border-bottom:1px solid #475569;background:#1e293b;position:sticky;top:0;z-index:9999;font-family:system-ui,-apple-system,sans-serif;">' +
+        '<div style="max-width:1280px;margin:0 auto;padding:0 1rem;display:flex;justify-content:space-between;align-items:center;height:52px;">' +
         '<a href="/" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;">' +
-            '<span style="font-size:1.5rem;">🌱</span>' +
-            '<span style="font-size:1.1rem;font-weight:700;color:#22c55e;">Harvest Your Passion</span>' +
+            '<span style="font-size:1.25rem;">\ud83c\udf31</span>' +
+            '<span style="font-size:1rem;font-weight:700;color:#22c55e;">Harvest Your Passion</span>' +
         '</a>' +
-        '<div style="display:flex;align-items:center;gap:1.5rem;font-size:0.875rem;">' +
-            '<a href="/" class="' + activeClass('home') + '" style="text-decoration:none;color:' + (section === 'home' ? '#4ade80' : '#d1d5db') + ';transition:color 0.2s;">Home</a>' +
-            '<a href="/coaching/" style="text-decoration:none;color:' + (section === 'coaching' ? '#4ade80' : '#d1d5db') + ';transition:color 0.2s;">Coaching</a>' +
-            '<a href="/roots/" style="text-decoration:none;color:' + (section === 'roots' ? '#4ade80' : '#d1d5db') + ';transition:color 0.2s;">Roots</a>' +
-            '<a href="/blog/" style="text-decoration:none;color:' + (section === 'blog' ? '#4ade80' : '#d1d5db') + ';transition:color 0.2s;">Blog</a>' +
-            '<a href="/store/" style="text-decoration:none;color:' + (section === 'store' ? '#4ade80' : '#d1d5db') + ';transition:color 0.2s;">Store</a>' +
-            '<a href="/about/" style="text-decoration:none;color:' + (section === 'about' ? '#4ade80' : '#d1d5db') + ';transition:color 0.2s;">About</a>' +
-            '<span id="harvest-nav-auth" style="margin-left:0.5rem;"></span>' +
-            '<span id="harvest-nav-client" style=""></span>' +
+        '<div style="display:flex;align-items:center;gap:1.25rem;font-size:0.8rem;">' +
+            '<a href="/" style="text-decoration:none;color:' + linkColor('home') + ';">Home</a>' +
+            '<a href="/coaching/" style="text-decoration:none;color:' + linkColor('coaching') + ';">Coaching</a>' +
+            '<a href="/roots/" style="text-decoration:none;color:' + linkColor('roots') + ';">Roots</a>' +
+            '<a href="/blog/" style="text-decoration:none;color:' + linkColor('blog') + ';">Blog</a>' +
+            '<a href="/store/" style="text-decoration:none;color:' + linkColor('store') + ';">Store</a>' +
+            '<a href="/about/" style="text-decoration:none;color:' + linkColor('about') + ';">About</a>' +
+            '<span id="harvest-nav-auth"></span>' +
+            '<span id="harvest-nav-client"></span>' +
         '</div>' +
         '</div>' +
         '</nav>';
 
     // Inject at top of body
-    var wrapper = document.createElement('div');
-    wrapper.innerHTML = navHTML;
-    document.body.insertBefore(wrapper.firstChild, document.body.firstChild);
-
-    // Update auth state
-    function updateNavAuth(session) {
-        var el = document.getElementById('harvest-nav-auth');
-        if (!el) return;
-        if (session) {
-            var user = session.user;
-            var name = (user.user_metadata && user.user_metadata.full_name) || (user.email ? user.email.split('@')[0] : 'User');
-            el.innerHTML = '<span style="color:#9ca3af;font-size:0.8rem;">Hi, ' + name + '</span> ' +
-                '<button onclick="signOut().then(function(){location.reload();})" style="border:1px solid #475569;color:#e2e8f0;padding:0.25rem 0.75rem;border-radius:9999px;font-size:0.75rem;cursor:pointer;background:transparent;margin-left:0.5rem;">Sign Out</button>';
-            
-            // Check if coaching client — show "My Sessions" link
-            if (user.id && window.isCoachingClient) {
-                window.isCoachingClient(user.id).then(function(isClient) {
-                    var clientEl = document.getElementById('harvest-nav-client');
-                    if (isClient && clientEl) {
-                        clientEl.innerHTML = '<a href="/coaching/sessions" style="text-decoration:none;color:#22c55e;font-size:0.8rem;font-weight:500;">My Sessions</a>';
-                    }
-                });
-            }
-        } else {
-            el.innerHTML = '<button onclick="signIn()" style="background:#22c55e;color:white;padding:0.3rem 1rem;border-radius:9999px;font-size:0.8rem;font-weight:500;cursor:pointer;border:none;">Log In</button>';
-        }
+    if (document.body) {
+        var wrapper = document.createElement('div');
+        wrapper.innerHTML = navHTML;
+        document.body.insertBefore(wrapper.firstChild, document.body.firstChild);
+        updateNavAuth();
     }
+}
 
-    // Init auth display
+function updateNavAuth() {
+    var el = document.getElementById('harvest-nav-auth');
+    if (!el) return;
+
     if (window.getSession) {
         window.getSession().then(function(session) {
-            updateNavAuth(session);
+            if (session) {
+                var user = session.user;
+                var name = (user.user_metadata && user.user_metadata.full_name) || (user.email ? user.email.split('@')[0] : 'User');
+                el.innerHTML = '<span style="color:#9ca3af;font-size:0.75rem;">Hi, ' + name + '</span> ' +
+                    '<button onclick="signOut().then(function(){location.reload();})" style="border:1px solid #475569;color:#e2e8f0;padding:0.2rem 0.6rem;border-radius:9999px;font-size:0.7rem;cursor:pointer;background:transparent;margin-left:0.4rem;">Sign Out</button>';
+
+                // Check coaching client
+                if (user.id && window.isCoachingClient) {
+                    window.isCoachingClient(user.id).then(function(isClient) {
+                        var clientEl = document.getElementById('harvest-nav-client');
+                        if (isClient && clientEl) {
+                            clientEl.innerHTML = '<a href="/coaching/sessions" style="text-decoration:none;color:#22c55e;font-size:0.75rem;font-weight:500;">My Sessions</a>';
+                        }
+                    });
+                }
+            } else {
+                el.innerHTML = '<button onclick="signIn()" style="background:#22c55e;color:white;padding:0.25rem 0.85rem;border-radius:9999px;font-size:0.75rem;font-weight:500;cursor:pointer;border:none;">Log In</button>';
+            }
         });
-        // Listen for auth changes
-        window.sb.auth.onAuthStateChange(function(_event, session) {
-            updateNavAuth(session);
-        });
+    } else {
+        // No supabase yet - show login button that will init on click
+        el.innerHTML = '<button onclick="if(window.signIn)signIn();else alert(\u0027Auth loading...\u0027);" style="background:#22c55e;color:white;padding:0.25rem 0.85rem;border-radius:9999px;font-size:0.75rem;font-weight:500;cursor:pointer;border:none;">Log In</button>';
     }
-})();
+}
+
+// Inject when DOM is ready (handles both head and body placement)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injectHarvestNav);
+} else {
+    // DOM already ready
+    injectHarvestNav();
+}
+
+// Listen for auth changes to update nav
+if (window.getSb && window.getSb()) {
+    window.getSb().auth.onAuthStateChange(function() {
+        updateNavAuth();
+    });
+} else {
+    // Retry after supabase initializes
+    setTimeout(function() {
+        if (window.getSb && window.getSb()) {
+            window.getSb().auth.onAuthStateChange(function() {
+                updateNavAuth();
+            });
+        }
+    }, 300);
+}
