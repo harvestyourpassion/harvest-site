@@ -14,19 +14,18 @@
 </head>
 <body class="min-h-screen">
 
-<!-- Header -->
-<header id="appHeader" class="surface border-b border-c px-4 py-2 flex items-center justify-between sticky top-0 z-50 hidden">
-<div class="flex items-center gap-3">
-<button class="hamburger text-xl p-2" onclick="toggleMobileNav()"><i class="fas fa-bars"></i></button>
-<h1 class="text-lg font-bold text-blue-400"><i class="fas fa-seedling mr-2"></i>Roots</h1>
-</div>
+<!-- Utility Bar (undo, notifications, settings) — hidden until auth -->
+<div id="utilityBar" class="surface border-b border-c px-3 py-1 flex items-center justify-between hidden" style="min-height:40px">
 <div class="flex items-center gap-2">
-<span id="undoBtn" class="hidden"><button onclick="doUndo()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded text-sm"><i class="fas fa-undo mr-1"></i>Undo</button></span>
-<button onclick="showNotifications()" class="relative p-2 hover:bg-slate-700 rounded" style="min-width:44px;min-height:44px"><i class="fas fa-bell text-lg"></i><span id="notifBadge" class="hidden absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"></span></button>
-<div class="relative"><button onclick="toggleProfileMenu()" class="flex items-center gap-2 px-3 py-1 rounded hover:bg-slate-700" style="min-height:44px"><i class="fas fa-user-circle text-lg"></i><span id="profileName" class="text-sm hidden sm:inline">Leo</span></button>
-<div id="profileMenu" class="hidden absolute right-0 top-full mt-1 surface border border-c rounded-lg shadow-xl w-56 z-50 p-2"></div></div>
+<span class="text-sm font-medium text-blue-400"><i class="fas fa-seedling mr-1"></i>Roots</span>
+<span id="undoBtn" class="hidden"><button onclick="doUndo()" class="bg-amber-600 hover:bg-amber-500 text-white px-2 py-0.5 rounded text-xs"><i class="fas fa-undo mr-1"></i>Undo</button></span>
 </div>
-</header>
+<div class="flex items-center gap-1">
+<button onclick="showNotifications()" class="relative p-2 hover:bg-slate-700 rounded" style="min-width:40px;min-height:40px"><i class="fas fa-bell"></i><span id="notifBadge" class="hidden absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center"></span></button>
+<button onclick="toggleSettingsMenu()" class="relative p-2 hover:bg-slate-700 rounded" style="min-width:40px;min-height:40px"><i class="fas fa-cog"></i></button>
+<div id="settingsMenu" class="hidden absolute right-3 top-12 surface border border-c rounded-lg shadow-xl w-48 z-50 p-2"></div>
+</div>
+</div>
 
 <!-- Main Tab Nav -->
 <nav id="mainTabNav" class="surface border-b border-c px-2 flex items-center overflow-x-auto desk-nav hidden" style="min-height:44px">
@@ -72,7 +71,6 @@
 <script>
 document.addEventListener("DOMContentLoaded", function(){
   initApp();
-  document.getElementById("profileName").textContent = currentProfile;
 });
 </script>
 </body>

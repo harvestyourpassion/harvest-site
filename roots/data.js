@@ -91,11 +91,10 @@ function createDefaultCloudProfile(){
     currentProfile = "My Life";
     // Initialize with empty state
     state = {items:[], mainTabs:[], subTabs:[], sections:[], kpiWidgets:[], settings:{}};
-    document.getElementById("appHeader").classList.remove("hidden");
+    document.getElementById("utilityBar").classList.remove("hidden");
     document.getElementById("filterBar").style.display = "";
     render();
     updateNotifBadge();
-    document.getElementById("profileName").textContent = currentProfile;
   });
 }
 
@@ -122,12 +121,11 @@ function loadFullProfile(profileId){
     state.kpiWidgets = kpis.map(function(k){return {id:k.id, label:k.label, type:k.type, filter:k.filter||{}};});
     state.settings = {};
 
-    document.getElementById("appHeader").classList.remove("hidden");
+    document.getElementById("utilityBar").classList.remove("hidden");
     document.getElementById("filterBar").style.display = "";
     window.userDisplayName = currentProfile;
     render();
     updateNotifBadge();
-    document.getElementById("profileName").textContent = currentProfile;
   });
 }
 

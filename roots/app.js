@@ -594,15 +594,13 @@ function showNotifications(){
 function closeNotifPanel(){document.getElementById("notifPanel").classList.add("hidden");}
 
 // ===== PROFILES =====
-function toggleProfileMenu(){
-  var menu = document.getElementById("profileMenu");
+function toggleSettingsMenu(){
+  var menu = document.getElementById("settingsMenu");
   if(menu.classList.contains("hidden")){
-    var html = '<div class="text-xs text-slate-400 mb-2 uppercase font-semibold">' + currentProfile + '</div>';
-    html += '<button onclick="showEditDisplayName()" class="w-full text-left px-3 py-2 rounded hover:bg-slate-600 text-sm"><i class="fas fa-pen mr-2"></i>Edit Display Name</button>';
+    var html = '<div class="text-xs text-slate-400 mb-2 uppercase font-semibold">Settings</div>';
     html += '<button onclick="exportProfile()" class="w-full text-left px-3 py-2 rounded hover:bg-slate-600 text-sm"><i class="fas fa-download mr-2"></i>Export</button>';
     html += '<button onclick="importProfile()" class="w-full text-left px-3 py-2 rounded hover:bg-slate-600 text-sm"><i class="fas fa-upload mr-2"></i>Import</button>';
     html += '<button onclick="exportTemplate()" class="w-full text-left px-3 py-2 rounded hover:bg-slate-600 text-sm"><i class="fas fa-share-from-square mr-2"></i>Export as Template</button>';
-    if(typeof doSignOut==="function" && currentUser) html += '<button onclick="doSignOut()" class="w-full text-left px-3 py-2 rounded hover:bg-slate-600 text-sm text-red-400"><i class="fas fa-sign-out-alt mr-2"></i>Sign Out</button>';
     menu.innerHTML = html;
     menu.classList.remove("hidden");
   } else {
@@ -626,7 +624,6 @@ function saveDisplayName(){
   var name = document.getElementById("editDisplayName").value.trim();
   if(!name) return;
   currentProfile = name;
-  document.getElementById("profileName").textContent = name;
   // Save to Supabase
   if(sb && currentProfileId){
     sb.from('roots_profiles').update({name: name}).eq('id', currentProfileId);
@@ -644,7 +641,6 @@ function switchProfile(name){
     if(profiles[name].sectionOrder) sectionOrder = profiles[name].sectionOrder;
   }
   activeMainTab = "all";activeSubTab = "";
-  document.getElementById("profileName").textContent = name;
   document.getElementById("profileMenu").classList.add("hidden");
   render();updateNotifBadge();
 }
