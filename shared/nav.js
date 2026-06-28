@@ -114,12 +114,24 @@ function editDisplayName() {
         var client = window.getSb ? window.getSb() : null;
         if (client && window._harvestCurrentUser) {
             var userId = window._harvestCurrentUser.id;
-            // Upsert - create profile if doesn't exist, update if it does
+            // Update existing profile, or insert if none exists
             client.from('roots_profiles')
-                .upsert({ user_id: userId, name: newName }, { onConflict: 'user_id' })
-                .then(function() {
-                    updateNavAuth();
-                    closeProfileDropdown();
+                .update({ name: newName })
+                .eq('user_id', userId)
+                .select()
+                .then(function(result) {
+                    if (result.data && result.data.length === 0) {
+                        // No profile row exists yet - create one
+                        client.from('roots_profiles')
+                            .insert({ user_id: userId, name: newName })
+                            .then(function() {
+                                updateNavAuth();
+                                closeProfileDropdown();
+                            });
+                    } else {
+                        updateNavAuth();
+                        closeProfileDropdown();
+                    }
                 });
         } else {
             updateNavAuth();
