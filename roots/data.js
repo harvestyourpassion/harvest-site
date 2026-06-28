@@ -21,13 +21,11 @@ function initSupabase(){
             currentUser = session.user;
             loadUserProfile();
           } else {
-            if(typeof requireAuth === "function") requireAuth('/roots/');
-            else fallbackToLocal();
+            showLoginRequired();
           }
         });
       } else {
-        isOnline = false;
-        fallbackToLocal();
+        showLoginRequired();
       }
     }, 200);
     return;
@@ -51,10 +49,8 @@ function initSupabase(){
       currentUser = session.user;
       loadUserProfile();
     } else {
-      // Not logged in — shared nav handles login UI
-      // If requireAuth exists (from shared/supabase.js), use it
-      if(typeof requireAuth === "function") requireAuth('/roots/');
-      else fallbackToLocal();
+      // Not logged in — show login screen, let user choose to sign in
+      showLoginRequired();
     }
   });
 }
@@ -124,9 +120,6 @@ function loadFullProfile(profileId){
     state.items = items.map(function(it){return {id:it.id, tab:it.tab, section:it.section, title:it.title, type:it.type, status:it.status, fields:it.fields||{}, subItems:it.sub_items||[], comments:it.comments||[], tags:it.tags||[], customFields:it.custom_fields||[], pinned:it.pinned, createdAt:it.created_at?it.created_at.slice(0,10):""};});
     state.kpiWidgets = kpis.map(function(k){return {id:k.id, label:k.label, type:k.type, filter:k.filter||{}};});
     state.settings = {};
-
-    // Also save to localStorage as offline cache
-    saveLocalCache();
 
     document.getElementById("filterBar").style.display = "";
     render();
@@ -211,31 +204,44 @@ function cloudSaveProfile(){
   }).eq('id', currentProfileId);
 }
 
-// ===== OFFLINE CACHE =====
-function saveLocalCache(){
-  var profiles = loadProfiles() || {};
-  profiles[currentProfile] = {items:state.items, mainTabs:state.mainTabs, subTabs:state.subTabs, sections:state.sections, kpiWidgets:state.kpiWidgets, sectionOrder:sectionOrder, settings:state.settings||{}};
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
-}
+// ===== (localStorage cache removed — cloud only) =====
 
 function fallbackToLocal(){
-  isOnline = false;
-  currentUser = null;
-  document.getElementById("filterBar").style.display = "";
-  doInitApp(); // uses localStorage
+  // No more localStorage fallback — always require cloud auth
+  showLoginRequired();
+}
+
+function showLoginRequired(){
+  document.getElementById("mainTabNav").innerHTML = "";
+  document.getElementById("subTabNav").innerHTML = "";
+  document.getElementById("filterBar").style.display = "none";
+  var html = '<div class="flex flex-col items-center justify-center min-h-[60vh]">';
+  html += '<div class="surface rounded-xl p-8 border border-c w-full max-w-sm text-center">';
+  html += '<i class="fas fa-seedling text-4xl text-blue-400 mb-4"></i>';
+  html += '<h2 class="text-xl font-bold mt-2 mb-2">Roots</h2>';
+  html += '<p class="text-slate-400 text-sm mb-4">Sign in to access your personal operating system</p>';
+  html += '<button onclick="if(typeof requireAuth===\'function\')requireAuth(\'/roots/\');else window.location.href=\'/\';" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-medium text-sm">Sign In</button>';
+  html += '</div></div>';
+  document.getElementById("content").innerHTML = html;
 }
 
 // ===== ENHANCED saveData =====
-// Override the original saveData to also push to cloud
-var originalSaveData = saveData;
+// Override saveData to save to cloud only (no localStorage)
 function saveData(){
-  // Always save locally (fast, offline support)
-  var profiles = loadProfiles() || {};
-  profiles[currentProfile] = {items:state.items, mainTabs:state.mainTabs, subTabs:state.subTabs, sections:state.sections, kpiWidgets:state.kpiWidgets, sectionOrder:sectionOrder, settings:state.settings||{}};
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
-
-  // If online, sync to cloud (debounced)
-  if(isOnline && sb && currentProfileId){
+  if(!sb || !currentProfileId) return;
+  // Debounced cloud sync
+  clearTimeout(window._cloudSyncTimer);
+  window._cloudSyncTimer = setTimeout(function(){
+    cloudSaveTabs();
+    cloudSaveSubTabs();
+    cloudSaveSections();
+    cloudSaveKPIs();
+    cloudSaveProfile();
+    for(var i=0;i<state.items.length;i++){
+      cloudSaveItem(state.items[i]);
+    }
+  }, 1500);
+}
     clearTimeout(window._cloudSyncTimer);
     window._cloudSyncTimer = setTimeout(function(){
       cloudSaveTabs();

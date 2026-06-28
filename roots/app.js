@@ -147,19 +147,13 @@ function getDefaultData(){
 }
 
 function initApp(){
-  var profiles = loadProfiles();
-  // Try Supabase first (multi-user cloud mode)
-  if(typeof initSupabase === "function" && window.supabase){
+  // Always use Supabase cloud mode
+  if(typeof initSupabase === "function"){
     initSupabase();
     return;
   }
-  // Check password lock
-  var passHash = localStorage.getItem("roots_lock_hash");
-  if(passHash){
-    showLockScreen();
-    return;
-  }
-  doInitApp();
+  // If initSupabase doesn't exist, something is very wrong
+  console.error("initSupabase not found — data.js may not have loaded");
 }
 
 function doInitApp(){
