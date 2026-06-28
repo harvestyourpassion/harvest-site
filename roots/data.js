@@ -242,18 +242,3 @@ function saveData(){
     }
   }, 1500);
 }
-    clearTimeout(window._cloudSyncTimer);
-    window._cloudSyncTimer = setTimeout(function(){
-      cloudSaveTabs();
-      cloudSaveSubTabs();
-      cloudSaveSections();
-      cloudSaveKPIs();
-      cloudSaveProfile();
-      // Items are saved individually via cloudSaveItem for efficiency
-      // But on full sync, save all positions
-      for(var i=0;i<state.items.length;i++){
-        cloudSaveItem(state.items[i]);
-      }
-    }, 1500); // 1.5s debounce
-  }
-}
