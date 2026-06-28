@@ -35,6 +35,7 @@
 <select id="sortBy" onchange="applyFilters()" class="text-xs py-1"><option value="">Sort</option><option value="priority">Priority</option><option value="dueDate">Due Date</option><option value="status">Status</option><option value="alpha">A-Z</option><option value="recent">Recent</option></select>
 <select id="groupBy" onchange="applyFilters()" class="text-xs py-1"><option value="">Group by</option><option value="status">Status</option><option value="priority">Priority</option><option value="type">Type</option></select>
 <span id="undoBtn" class="hidden"><button onclick="doUndo()" class="bg-amber-600 hover:bg-amber-500 text-white px-2 py-0.5 rounded text-xs ml-2"><i class="fas fa-undo mr-1"></i>Undo</button></span>
+<span class="ml-auto relative"><button onclick="toggleSettingsMenu()" class="text-slate-400 hover:text-white px-2 py-1 text-xs"><i class="fas fa-ellipsis-vertical"></i></button><div id="settingsMenu" class="hidden absolute right-0 top-full mt-1 surface border border-c rounded-lg shadow-xl w-48 z-50 p-2"></div></span>
 </div>
 </div>
 
