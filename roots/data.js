@@ -92,7 +92,10 @@ function createDefaultCloudProfile(){
     // Initialize with empty state
     state = {items:[], mainTabs:[], subTabs:[], sections:[], kpiWidgets:[], settings:{}};
     document.getElementById("utilityBar").classList.remove("hidden");
+    document.getElementById("mainTabNav").classList.remove("hidden");
+    document.getElementById("subTabNav").classList.remove("hidden");
     document.getElementById("filterBar").style.display = "";
+    document.getElementById("filterBar").classList.remove("hidden");
     render();
     updateNotifBadge();
   });
@@ -122,7 +125,10 @@ function loadFullProfile(profileId){
     state.settings = {};
 
     document.getElementById("utilityBar").classList.remove("hidden");
+    document.getElementById("mainTabNav").classList.remove("hidden");
+    document.getElementById("subTabNav").classList.remove("hidden");
     document.getElementById("filterBar").style.display = "";
+    document.getElementById("filterBar").classList.remove("hidden");
     window.userDisplayName = currentProfile;
     render();
     updateNotifBadge();
