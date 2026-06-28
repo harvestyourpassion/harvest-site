@@ -15,13 +15,17 @@ function injectHarvestNav() {
     else if (path.indexOf('/about') === 0) section = 'about';
     else if (path === '/') section = 'home';
 
+    var sectionLabels = { roots: 'Roots', coaching: 'Coaching', blog: 'Blog', store: 'Store', about: 'About' };
+    var sectionLabel = sectionLabels[section] || '';
+
     function lc(s) { return section === s ? '#4ade80' : '#d1d5db'; }
 
     var navHTML = '<nav id="harvest-global-nav" style="border-bottom:1px solid #475569;background:#1e293b;position:sticky;top:0;z-index:9999;font-family:system-ui,-apple-system,sans-serif;">' +
         '<div style="max-width:1280px;margin:0 auto;padding:0 1rem;display:flex;justify-content:space-between;align-items:center;height:52px;">' +
         '<a href="/" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;">' +
             '<span style="font-size:1.25rem;">\ud83c\udf31</span>' +
-            '<span style="font-size:1rem;font-weight:700;color:#22c55e;">Harvest Your Passion</span>' +
+            '<span style="font-size:1rem;font-weight:700;color:#e2e8f0;">Harvest Your Passion</span>' +
+            (section && section !== 'home' ? '<span style="color:#64748b;margin:0 0.3rem;font-weight:300;">&mdash;</span><span style="font-size:1rem;font-weight:700;color:#4ade80;">' + sectionLabel + '</span>' : '') +
         '</a>' +
         '<div style="display:flex;align-items:center;gap:1.25rem;font-size:0.8rem;">' +
             '<a href="/" style="text-decoration:none;color:' + lc('home') + ';">Home</a>' +
@@ -37,6 +41,8 @@ function injectHarvestNav() {
         '</nav>' +
         '<style>' +
         '#harvest-global-nav a:hover{color:#4ade80!important}' +
+        ':root{--harvest-nav-max-width:1280px;--harvest-nav-padding:1rem;}' +
+        '.harvest-container{max-width:var(--harvest-nav-max-width);margin:0 auto;padding:0 var(--harvest-nav-padding);}' +
         '#harvest-profile-dropdown{display:none;position:absolute;top:100%;right:0;margin-top:0.5rem;background:#1e293b;border:1px solid #475569;border-radius:0.5rem;padding:0.75rem 1rem;min-width:220px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:10000;}' +
         '#harvest-profile-dropdown.open{display:block;}' +
         '#harvest-profile-dropdown .profile-name{color:#e2e8f0;font-size:0.85rem;font-weight:600;margin-bottom:0.25rem;}' +
