@@ -6,7 +6,8 @@ function render(){
 }
 
 function renderMainTabs(){
-  var nav = document.getElementById("mainTabNav");
+  var navWrap = document.getElementById("mainTabNav");
+  var nav = navWrap.querySelector('.harvest-container') || navWrap;
   var html = '<button onclick="switchMainTab(\'all\')" class="px-4 py-2 text-sm font-medium whitespace-nowrap ' + (activeMainTab==="all"?"tab-active":"text-slate-400 hover:text-white") + '" style="min-height:44px"><i class="fas fa-th-large mr-1"></i>All</button>';
   for(var i=0;i<state.mainTabs.length;i++){
     var t = state.mainTabs[i];
@@ -17,9 +18,10 @@ function renderMainTabs(){
 }
 
 function renderSubTabs(){
-  var nav = document.getElementById("subTabNav");
-  if(activeMainTab === "all"){nav.innerHTML = "";nav.style.display="none";return;}
-  nav.style.display = "flex";
+  var navWrap = document.getElementById("subTabNav");
+  var nav = navWrap.querySelector('.harvest-container') || navWrap;
+  if(activeMainTab === "all"){nav.innerHTML = "";navWrap.style.display="none";return;}
+  navWrap.style.display = "";
   var subs = state.subTabs.filter(function(s){return s.tabId === activeMainTab;});
   var html = "";
   for(var i=0;i<subs.length;i++){

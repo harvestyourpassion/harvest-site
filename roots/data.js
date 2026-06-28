@@ -91,7 +91,6 @@ function createDefaultCloudProfile(){
     currentProfile = "My Life";
     // Initialize with empty state
     state = {items:[], mainTabs:[], subTabs:[], sections:[], kpiWidgets:[], settings:{}};
-    document.getElementById("utilityBar").classList.remove("hidden");
     document.getElementById("mainTabNav").classList.remove("hidden");
     document.getElementById("subTabNav").classList.remove("hidden");
     document.getElementById("filterBar").style.display = "";
@@ -124,7 +123,6 @@ function loadFullProfile(profileId){
     state.kpiWidgets = kpis.map(function(k){return {id:k.id, label:k.label, type:k.type, filter:k.filter||{}};});
     state.settings = {};
 
-    document.getElementById("utilityBar").classList.remove("hidden");
     document.getElementById("mainTabNav").classList.remove("hidden");
     document.getElementById("subTabNav").classList.remove("hidden");
     document.getElementById("filterBar").style.display = "";
