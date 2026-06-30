@@ -6,6 +6,16 @@
 function injectHarvestNav() {
     if (document.getElementById('harvest-global-nav')) return;
 
+    // Site-wide favicon from the brand logo (PNG for broad favicon support).
+    if (!document.getElementById('harvest-favicon')) {
+        var fav = document.createElement('link');
+        fav.id = 'harvest-favicon';
+        fav.rel = 'icon';
+        fav.type = 'image/png';
+        fav.href = '/assets/brand/logo.png';
+        document.head.appendChild(fav);
+    }
+
     var path = window.location.pathname;
     var section = '';
     if (path.indexOf('/roots') === 0) section = 'roots';
@@ -26,7 +36,7 @@ function injectHarvestNav() {
     var navHTML = '<nav id="harvest-global-nav" style="border-bottom:1px solid #475569;background:#1e293b;position:sticky;top:0;z-index:9999;font-family:system-ui,-apple-system,sans-serif;">' +
         '<div style="max-width:1280px;margin:0 auto;padding:0 1rem;display:flex;justify-content:space-between;align-items:center;height:52px;">' +
         '<a href="/" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;">' +
-            '<span style="font-size:1.25rem;">\ud83c\udf31</span>' +
+            '<img src="/assets/brand/logo.svg" alt="Harvest Your Passion" style="height:34px;width:auto;display:block;" onerror="this.onerror=null;this.src=\'/assets/brand/logo.png\';">' +
             '<span style="font-size:1rem;font-weight:700;color:#e2e8f0;">Harvest Your Passion</span>' +
             (section && section !== 'home' ? '<span style="color:#64748b;margin:0 0.3rem;font-weight:300;">&mdash;</span><span style="font-size:1rem;font-weight:700;color:' + sectionColor + ';">' + sectionLabel + '</span>' : '') +
         '</a>' +
