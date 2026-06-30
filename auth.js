@@ -40,7 +40,9 @@ function login() {
     supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: window.location.origin
+            redirectTo: window.location.origin,
+            // Always show the Google account chooser.
+            queryParams: { prompt: 'select_account' }
         }
     }).then(function(result) {
         if (result.error) console.error('Login error:', result.error.message);

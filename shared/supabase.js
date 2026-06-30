@@ -48,7 +48,10 @@ window.signIn = function(redirectTo) {
     return client.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: redirectTo || window.location.origin + window.location.pathname
+            redirectTo: redirectTo || window.location.origin + window.location.pathname,
+            // Always show the Google account chooser — never silently reuse the
+            // last-used account.
+            queryParams: { prompt: 'select_account' }
         }
     });
 };
