@@ -30,7 +30,16 @@
 
   function loadCoach() {
     return sb.from('coaches').select('*').eq('user_id', profile.id).maybeSingle()
-      .then(function (res) { coach = res.data; });
+      .then(function (res) {
+        coach = res.data;
+        // Admins manage a single coaching practice. If this admin account isn't
+        // the one the coach row is keyed to, fall back to the first coach so
+        // Garden works regardless of which of Leo's accounts is signed in.
+        if (!coach && profile.role === 'admin') {
+          return sb.from('coaches').select('*').order('created_at').limit(1).maybeSingle()
+            .then(function (r2) { coach = r2.data; });
+        }
+      });
   }
 
   function show(view, arg) {
