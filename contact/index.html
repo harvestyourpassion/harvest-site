@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact — Harvest Your Passion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/nav.js"></script>
+<script src="/shared/devpanel.js"></script>
+<script src="/shared/pwa.js"></script>
+<link rel="stylesheet" href="/shared/h-components.css">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<style>
+  body { margin:0; background:var(--bg); color:var(--text-primary); font-family:Inter,system-ui,sans-serif; }
+  .ct-wrap { max-width:520px; margin:0 auto; padding:40px 20px; }
+  .ct-h1 { font-size:var(--text-3xl); font-weight:700; margin:0 0 8px; }
+  .ct-sub { color:var(--text-secondary); margin:0 0 24px; }
+</style>
+</head>
+<body>
+<div class="ct-wrap h-scope" id="ct-root">
+  <h1 class="ct-h1">Let’s talk</h1>
+  <p class="ct-sub">Tell me where you’re at and what you’re working toward. I’ll be in touch personally.</p>
+  <form id="ct-form">
+    <div id="ct-fields"></div>
+    <div id="ct-submit"></div>
+  </form>
+</div>
+
+<script>
+  var COACH_ID = '389b085c-19f1-4b45-b989-a94cc7863288'; // Leo's coach record
+  document.getElementById('ct-fields').innerHTML =
+    H.input({ id: 'ct-name', label: 'Name', placeholder: 'Your name' }) +
+    H.input({ id: 'ct-email', label: 'Email', type: 'email', placeholder: 'you@example.com' }) +
+    H.input({ id: 'ct-interest', label: 'I’m interested in', type: 'select', options: [
+      { value: 'coaching', label: 'Coaching' }, { value: 'roots', label: 'Roots (the app)' }, { value: 'general', label: 'General' }
+    ], value: 'coaching' }) +
+    H.input({ id: 'ct-message', label: 'Message', type: 'textarea', placeholder: 'What’s on your mind?' });
+  document.getElementById('ct-submit').innerHTML = H.button({ label: 'Send', id: 'ct-send', block: true });
+
+  document.getElementById('ct-send').addEventListener('click', function (e) {
+    e.preventDefault();
+    var name = document.getElementById('ct-name').value.trim();
+    var email = document.getElementById('ct-email').value.trim();
+    if (!name || !email) { H.toast('Name and email required', 'error'); return; }
+    var sb = window.getSb();
+    var row = {
+      coach_id: COACH_ID, name: name, email: email, status: 'prospect',
+      intake_answers: {
+        interest: document.getElementById('ct-interest').value,
+        message: document.getElementById('ct-message').value.trim(),
+        source: 'contact_form', submitted_at: new Date().toISOString()
+      }
+    };
+    var btn = document.getElementById('ct-send');
+    btn.classList.add('is-loading');
+    sb.from('clients').insert(row).then(function (res) {
+      btn.classList.remove('is-loading');
+      if (res.error) { H.toast('Something went wrong: ' + res.error.message, 'error'); return; }
+      document.getElementById('ct-root').innerHTML =
+        '<div class="h-empty"><div class="h-empty__icon">🌱</div>' +
+        '<div class="h-empty__title">Thanks — Leo will be in touch.</div>' +
+        '<p class="h-muted">Your message is on its way. Meanwhile, you can <a href="/roots/" style="color:var(--accent-blue)">try Roots free</a>.</p></div>';
+    });
+  });
+</script>
+</body>
+</html>

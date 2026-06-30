@@ -13,6 +13,7 @@ function injectHarvestNav() {
     else if (path.indexOf('/blog') === 0) section = 'blog';
     else if (path.indexOf('/store') === 0) section = 'store';
     else if (path.indexOf('/about') === 0) section = 'about';
+    else if (path.indexOf('/contact') === 0) section = 'contact';
     else if (path === '/') section = 'home';
 
     var sectionLabels = { roots: 'Roots', coaching: 'Coaching', blog: 'Blog', store: 'Store', about: 'About' };
@@ -36,6 +37,7 @@ function injectHarvestNav() {
             '<a href="/blog/" style="text-decoration:none;color:' + lc('blog') + ';">Blog</a>' +
             '<a href="/store/" style="text-decoration:none;color:' + lc('store') + ';">Store</a>' +
             '<a href="/about/" style="text-decoration:none;color:' + lc('about') + ';">About</a>' +
+            '<a href="/contact/" style="text-decoration:none;color:' + lc('contact') + ';">Contact</a>' +
             '<span id="harvest-nav-client"></span>' +
             '<span id="harvest-nav-auth" style="position:relative;"></span>' +
         '</div>' +

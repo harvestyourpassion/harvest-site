@@ -1,61 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blog — Harvest Your Passion</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="/shared/supabase.js"></script>
-    <script src="/shared/nav.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blog — Harvest Your Passion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/nav.js"></script>
 <script src="/shared/devpanel.js"></script>
 <script src="/shared/pwa.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'harvest-bg': '#0f172a',
-                        'harvest-surface': '#1e293b',
-                        'harvest-elevated': '#334155',
-                        'harvest-border': '#475569',
-                        'harvest-text': '#e2e8f0',
-                        'harvest-green': '#22c55e',
-                    }
-                }
-            }
-        }
-    </script>
-    <link rel="stylesheet" href="/styles.css">
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#0f172a">
-    <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
+<link rel="stylesheet" href="/shared/h-components.css">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<style>
+  body { margin:0; background:var(--bg); color:var(--text-primary); font-family:Inter,system-ui,sans-serif; }
+  .b-wrap { max-width:720px; margin:0 auto; padding:32px 20px; }
+  .b-h1 { font-size:var(--text-3xl); font-weight:700; margin:0 0 4px; }
+  .b-sub { color:var(--text-secondary); margin:0 0 24px; }
+  .b-post { padding:16px 0; border-bottom:1px solid var(--border); cursor:pointer; }
+  .b-post h2 { font-size:var(--text-xl); margin:0 0 6px; }
+  .b-post:hover h2 { color:var(--accent-green); }
+  .b-body { line-height:1.7; white-space:pre-wrap; }
+  .b-back { color:var(--accent-blue); cursor:pointer; font-size:14px; }
+</style>
 </head>
-<body class="bg-harvest-bg text-harvest-text min-h-screen">
+<body>
+<div class="b-wrap h-scope" id="b-root"></div>
 
-    <!-- Page Content -->
-    <section class="py-20 px-4">
-        <div class="max-w-4xl mx-auto text-center">
-            <div class="text-6xl mb-6">📚</div>
-            <h1 class="text-4xl md:text-5xl font-bold mb-4">Blog</h1>
-            <p class="text-xl text-gray-400 mb-8">Articles, frameworks, and insights from experience, books, and connecting the dots.</p>
-            <div class="bg-harvest-surface border border-harvest-border rounded-xl p-8 mt-8">
-                <p class="text-harvest-green font-medium">🚧 Coming Soon</p>
-                <p class="text-gray-400 mt-2">This section is being built. Check back soon!</p>
-            </div>
-        </div>
-    </section>
+<script>
+  function fmt(d){ return d ? new Date(d).toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'}) : ''; }
+  function param(k){ return new URLSearchParams(location.search).get(k); }
 
-    <!-- Footer -->
-    <footer class="border-t border-harvest-border py-8 px-4 mt-auto">
-        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center">
-            <p class="text-gray-500">© 2026 Harvest Your Passion LLC. All rights reserved.</p>
-            <div class="flex space-x-6 mt-4 md:mt-0">
-                <a href="/" class="text-gray-500 hover:text-harvest-green transition-colors">Home</a>
-                <a href="/about/" class="text-gray-500 hover:text-harvest-green transition-colors">About</a>
-            </div>
-        </div>
-    </footer>
-
+  function init(){
+    var sb = window.getSb();
+    var root = document.getElementById('b-root');
+    root.innerHTML = H.loading({ skeleton:true, count:3 });
+    var id = param('id');
+    if (id){
+      sb.from('content_items').select('*').eq('id', id).eq('is_public', true).maybeSingle().then(function(res){
+        var p = res.data;
+        if (!p){ root.innerHTML = '<a class="b-back" href="/blog/">&larr; Blog</a>' + H.error({ title:'Post not found' }); return; }
+        root.innerHTML = '<a class="b-back" href="/blog/">&larr; Blog</a>' +
+          '<h1 class="b-h1" style="margin-top:12px">' + H.esc(p.title) + '</h1>' +
+          '<p class="b-sub">' + fmt(p.updated_at) + ' · ' + H.esc(p.stage) + '</p>' +
+          '<div class="b-body">' + H.esc(p.body || '') + '</div>';
+      });
+      return;
+    }
+    sb.from('content_items').select('*').eq('is_public', true).order('updated_at',{ascending:false}).then(function(res){
+      var posts = res.data || [];
+      var html = '<h1 class="b-h1">Blog</h1><p class="b-sub">Timeless principles, translated for today.</p>';
+      if (!posts.length){
+        html += H.empty({ icon:'📚', title:'No articles yet', description:'New writing will appear here soon. Meanwhile, try Roots free.', cta:{ label:'Try Roots', href:'/roots/' } });
+      } else {
+        posts.forEach(function(p){
+          var excerpt = (p.body||'').slice(0,160);
+          html += '<div class="b-post" data-id="'+p.id+'"><h2>'+H.esc(p.title)+'</h2>'+
+            '<div class="h-muted" style="font-size:13px;margin-bottom:6px">'+fmt(p.updated_at)+'</div>'+
+            '<div class="h-muted">'+H.esc(excerpt)+(p.body&&p.body.length>160?'…':'')+'</div></div>';
+        });
+      }
+      root.innerHTML = html;
+      root.querySelectorAll('[data-id]').forEach(function(el){
+        el.addEventListener('click', function(){ location.href = '/blog/?id=' + el.getAttribute('data-id'); });
+      });
+    });
+  }
+  if (window.getSb && window.getSb()) init();
+  else document.addEventListener('DOMContentLoaded', function(){ setTimeout(init, 150); });
+</script>
 </body>
 </html>
