@@ -39,6 +39,7 @@
     if (view === 'dashboard') return renderDashboard(m);
     if (view === 'clients') return renderClients(m);
     if (view === 'client') return renderClient(m, arg);
+    if (view === 'session') return renderSession(m, arg);
     if (view === 'sessions') return renderSessions(m);
     if (view === 'packages') return renderPackages(m);
     if (view === 'billing') return renderBilling(m);
@@ -208,16 +209,91 @@
         } else {
           html += '<div style="display:flex;flex-direction:column;gap:10px">';
           sessions.forEach(function (s) {
-            html += H.card({ body:
+            html += '<div data-session-id="' + H.esc(s.id) + '" style="cursor:pointer">' + H.card({ body:
               '<div class="h-row" style="justify-content:space-between">' +
               '<span>' + fmtDate(s.scheduled_at) + '</span>' +
               H.badge(s.status || 'scheduled', s.status === 'completed' ? 'done' : 'active') + '</div>'
-            });
+            }) + '</div>';
           });
           html += '</div>';
         }
         m.innerHTML = html;
+        m.querySelectorAll('[data-session-id]').forEach(function (el) {
+          el.addEventListener('click', function () { show('session', el.getAttribute('data-session-id')); });
+        });
       });
+  }
+
+  // ---------- Session detail (prep/live/post + outcome) ----------
+  var OUTCOMES = ['scheduled', 'in_progress', 'completed', 'cancelled', 'rescheduled', 'forfeited', 'no_show'];
+  function renderSession(m, sessionId) {
+    Promise.all([
+      sb.from('sessions').select('*, clients(name,email)').eq('id', sessionId).maybeSingle(),
+      sb.from('session_notes').select('*').eq('session_id', sessionId).order('created_at')
+    ]).then(function (res) {
+      var s = res[0].data;
+      var notes = res[1].data || [];
+      if (!s) { m.innerHTML = H.error({ title: 'Session not found' }); return; }
+      var clientName = (s.clients && (s.clients.name || s.clients.email)) || 'Client';
+      var html = '<a class="h-muted" style="cursor:pointer;font-size:13px" id="g-s-back">&larr; Sessions</a>';
+      html += head('Session — ' + clientName, fmtDate(s.scheduled_at));
+      html += '<div class="h-row" style="gap:6px;flex-wrap:wrap;margin-bottom:16px">';
+      OUTCOMES.forEach(function (o) {
+        html += '<button class="h-btn ' + (s.status === o ? 'h-btn--primary' : 'h-btn--secondary') + '" style="min-height:34px;padding:0 10px" data-outcome="' + o + '">' + o.replace('_', ' ') + '</button>';
+      });
+      html += '</div>';
+      if (s.zoom_link) html += H.card({ body: '🔗 <a href="' + H.esc(s.zoom_link) + '" target="_blank" style="color:var(--accent-blue)">Zoom link</a>' });
+
+      ['prep', 'live', 'post'].forEach(function (kind) {
+        var note = notes.filter(function (n) { return n.type === kind; })[0];
+        html += '<div class="g-section-title">' + kind.charAt(0).toUpperCase() + kind.slice(1) + ' notes</div>';
+        html += '<textarea class="h-textarea" id="g-note-' + kind + '" placeholder="' + kind + ' notes…">' + H.esc(note ? note.content : '') + '</textarea>';
+      });
+      html += '<div class="h-row" style="gap:8px;margin-top:14px">' +
+        H.button({ label: 'Save Notes', id: 'g-save-notes' }) +
+        H.button({ label: 'Post-Session: generate follow-up', variant: 'secondary', id: 'g-followup' }) + '</div>';
+      m.innerHTML = html;
+
+      document.getElementById('g-s-back').addEventListener('click', function () { show('sessions'); });
+      m.querySelectorAll('[data-outcome]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          sb.from('sessions').update({ status: b.getAttribute('data-outcome') }).eq('id', sessionId).then(function (r) {
+            if (r.error) H.toast('Failed: ' + r.error.message, 'error');
+            else { H.toast('Outcome: ' + b.getAttribute('data-outcome'), 'success'); show('session', sessionId); }
+          });
+        });
+      });
+      document.getElementById('g-save-notes').addEventListener('click', function () {
+        saveNotes(sessionId, notes);
+      });
+      document.getElementById('g-followup').addEventListener('click', function () {
+        postSessionFollowup(s);
+      });
+    });
+  }
+
+  function saveNotes(sessionId, existing) {
+    var ops = ['prep', 'live', 'post'].map(function (kind) {
+      var content = document.getElementById('g-note-' + kind).value;
+      var note = existing.filter(function (n) { return n.type === kind; })[0];
+      if (note) return sb.from('session_notes').update({ content: content }).eq('id', note.id);
+      if (content.trim()) return sb.from('session_notes').insert({ session_id: sessionId, type: kind, content: content });
+      return Promise.resolve();
+    });
+    Promise.all(ops).then(function () { H.toast('Notes saved', 'success'); });
+  }
+
+  // Post-session one-button: mark generated, log a summary to the client timeline.
+  function postSessionFollowup(s) {
+    var post = document.getElementById('g-note-post');
+    var summary = (post && post.value.trim()) || 'Session completed — follow-up generated.';
+    Promise.all([
+      sb.from('sessions').update({ status: 'completed', follow_up_generated: true, summary: summary }).eq('id', s.id),
+      sb.from('client_activity').insert({ client_id: s.client_id, type: 'session', description: 'Session summary: ' + summary })
+    ]).then(function (res) {
+      if (res[0].error || res[1].error) H.toast('Partial failure — check console', 'error');
+      else { H.toast('Follow-up generated & logged to timeline', 'success'); show('session', s.id); }
+    });
   }
 
   // ---------- Packages ----------
