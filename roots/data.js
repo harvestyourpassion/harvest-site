@@ -1,221 +1,207 @@
-// ===== SUPABASE DATA LAYER FOR ROOTS =====
-// Uses shared window.sb client from /shared/supabase.js
-// Auth handled by shared global nav — no local auth screen needed
+// ===== SUPABASE DATA LAYER FOR ROOTS (spec schema) =====
+// Reads/writes the canonical spec tables: `items` + `tabs`, keyed by user_id.
+// Single workspace per user (no profiles) — Leo's decision, June 30 2026.
+// Tab/sub-tab/section STRUCTURE still comes from getDefaultData() in app.js
+// (string keys like "personal"); only ITEMS are persisted to the cloud.
+// Item.tab (string key) <-> tabs.id (uuid) is mapped by normalized tab name.
+// Loads cleanly even if a tab the item references has no row yet.
 
 var sb = null;
 var currentUser = null;
-var currentProfileId = null;
-var isOnline = true;
+var ownerId = null;
+var currentProfileId = null; // legacy ref guarded in app.js rename; kept null
+var _tabKeyToUuid = {};
+var _tabUuidToKey = {};
+
+function _norm(name){ return String(name || "").toLowerCase().replace(/[^a-z0-9]/g, ""); }
+
+function _uuidv4(){
+  if(window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c){
+    var r = Math.random() * 16 | 0, v = c === "x" ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// Override app.js generateId so new items get a real UUID (items.id is uuid).
+function generateId(){ return _uuidv4(); }
 
 // ===== INIT =====
 function initSupabase(){
   sb = window.getSb ? window.getSb() : null;
-  if(!sb){
-    // Retry after a moment (CDN might still be loading)
-    setTimeout(function(){
-      sb = window.getSb ? window.getSb() : null;
-      if(sb){
-        sb.auth.getSession().then(function(result){
-          var session = result.data.session;
-          if(session){
-            currentUser = session.user;
-            loadUserProfile();
-          } else {
-            showLoginRequired();
-          }
-        });
-      } else {
-        showLoginRequired();
-      }
-    }, 200);
-    return;
-  }
-  // Listen for auth state changes from the shared nav
+  if(!sb){ setTimeout(initSupabase, 200); return; }
+
   sb.auth.onAuthStateChange(function(event, session){
-    if(event === 'SIGNED_IN' && session){
-      currentUser = session.user;
-      loadUserProfile();
-    } else if(event === 'SIGNED_OUT'){
-      currentUser = null;
-      currentProfileId = null;
-      state = {items:[],mainTabs:[],subTabs:[],sections:[],kpiWidgets:[],settings:{}};
-      render();
-    }
-  });
-  // Check existing session
-  sb.auth.getSession().then(function(result){
-    var session = result.data.session;
-    if(session){
-      currentUser = session.user;
-      loadUserProfile();
-    } else {
-      // Not logged in — show login screen, let user choose to sign in
+    if(event === "SIGNED_IN" && session){
+      currentUser = session.user; ownerId = session.user.id; loadFromCloud();
+    } else if(event === "SIGNED_OUT"){
+      currentUser = null; ownerId = null;
+      state = {items:[], mainTabs:[], subTabs:[], sections:[], kpiWidgets:[], settings:{}};
       showLoginRequired();
     }
   });
+
+  sb.auth.getSession().then(function(result){
+    var session = result.data.session;
+    if(session){ currentUser = session.user; ownerId = session.user.id; loadFromCloud(); }
+    else { showLoginRequired(); }
+  });
 }
 
-function doSignOut(){
-  if(sb) sb.auth.signOut();
-}
+function doSignOut(){ if(sb) sb.auth.signOut(); }
 
-// ===== PROFILE LOADING =====
-function loadUserProfile(){
-  sb.from('roots_profiles').select('*').eq('user_id', currentUser.id).then(function(result){
-    if(result.error){console.error(result.error);return;}
-    if(result.data.length === 0){
-      // First time user — create default profile
-      createDefaultCloudProfile();
-    } else {
-      // Load the default profile (or first one)
-      var defaultProfile = result.data.find(function(p){return p.is_default;}) || result.data[0];
-      currentProfileId = defaultProfile.id;
-      currentProfile = defaultProfile.name;
-      sectionOrder = defaultProfile.section_order || ["tabs","kpis"];
-      loadFullProfile(currentProfileId);
+// ===== LOAD =====
+function loadFromCloud(){
+  // Structure (tabs/subtabs/sections/kpis) from the app's defaults.
+  state = getDefaultData();
+
+  sb.from("tabs").select("*").eq("user_id", ownerId).order("order_index").then(function(tr){
+    var tabs = (tr && tr.data) || [];
+    _tabKeyToUuid = {}; _tabUuidToKey = {};
+    var i, key;
+    for(i = 0; i < tabs.length; i++){
+      key = _norm(tabs[i].name);
+      _tabKeyToUuid[key] = tabs[i].id;
+      _tabUuidToKey[tabs[i].id] = key;
     }
-  });
-}
-
-function createDefaultCloudProfile(){
-  var profileData = {
-    user_id: currentUser.id,
-    name: "My Life",
-    is_default: true,
-    section_order: ["tabs","kpis"],
-    settings: {}
-  };
-  sb.from('roots_profiles').insert(profileData).select().then(function(result){
-    if(result.error){console.error(result.error);return;}
-    currentProfileId = result.data[0].id;
-    currentProfile = "My Life";
-    // Initialize with empty state
-    state = {items:[], mainTabs:[], subTabs:[], sections:[], kpiWidgets:[], settings:{}};
-    document.getElementById("mainTabNav").classList.remove("hidden");
-    document.getElementById("subTabNav").classList.remove("hidden");
-    document.getElementById("filterBar").style.display = "";
-    document.getElementById("filterBar").classList.remove("hidden");
+    // Surface any cloud tab that isn't one of the default workspaces.
+    for(i = 0; i < tabs.length; i++){
+      key = _norm(tabs[i].name);
+      var found = false, m;
+      for(m = 0; m < state.mainTabs.length; m++){ if(state.mainTabs[m].id === key){ found = true; break; } }
+      if(!found){
+        state.mainTabs.push({id:key, name:tabs[i].name, icon:tabs[i].icon || "", color:tabs[i].color || "#3b82f6"});
+      }
+    }
+    return sb.from("items").select("*").eq("user_id", ownerId);
+  }).then(function(ir){
+    var rows = (ir && ir.data) || [];
+    state.items = rows.map(_rowToItem);
+    state.items.sort(function(a, b){
+      var ao = (a._order == null) ? 99999 : a._order;
+      var bo = (b._order == null) ? 99999 : b._order;
+      return ao - bo;
+    });
+    _showApp();
+    window.userDisplayName = (currentUser && currentUser.user_metadata && currentUser.user_metadata.full_name)
+      || (currentUser && currentUser.email ? currentUser.email.split("@")[0] : "");
     render();
     updateNotifBadge();
   });
 }
 
-function loadFullProfile(profileId){
-  // Load all data for this profile in parallel
-  Promise.all([
-    sb.from('roots_main_tabs').select('*').eq('profile_id', profileId).order('position'),
-    sb.from('roots_sub_tabs').select('*').eq('profile_id', profileId).order('position'),
-    sb.from('roots_sections').select('*').eq('profile_id', profileId).order('position'),
-    sb.from('roots_items').select('*').eq('profile_id', profileId).order('position'),
-    sb.from('roots_kpi_widgets').select('*').eq('profile_id', profileId).order('position')
-  ]).then(function(results){
-    var tabs = results[0].data || [];
-    var subTabs = results[1].data || [];
-    var sections = results[2].data || [];
-    var items = results[3].data || [];
-    var kpis = results[4].data || [];
+function _rowToItem(row){
+  var f = {}, legacyTags = null, ord = null;
+  var src = row.fields || {}, k;
+  for(k in src){
+    if(!src.hasOwnProperty(k)) continue;
+    if(k === "_legacy_tags"){ legacyTags = src[k]; continue; }
+    if(k === "_order"){ ord = src[k]; continue; }
+    if(k === "tags"){ if(!legacyTags) legacyTags = src[k]; continue; }
+    if(k.charAt(0) === "_") continue; // strip _migrated, _legacy_id, _legacy_section
+    f[k] = src[k];
+  }
+  return {
+    id: row.id,
+    tab: _tabUuidToKey[row.tab_id] || "personal",
+    section: null,
+    title: row.title,
+    type: row.type,
+    status: row.status,
+    fields: f,
+    subItems: row.sub_items || [],
+    comments: row.comments || [],
+    tags: legacyTags || [],
+    customFields: row.custom_fields || [],
+    pinned: !!row.pinned,
+    createdAt: row.created_at ? String(row.created_at).slice(0, 10) : "",
+    _order: ord
+  };
+}
 
-    // Map to app state format
-    state.mainTabs = tabs.map(function(t){return {id:t.id, name:t.name, icon:t.icon, color:t.color};});
-    state.subTabs = subTabs.map(function(s){return {id:s.id, tabId:s.tab_id, name:s.name, mode:s.mode, filter:s.filter||{}};});
-    state.sections = sections.map(function(s){return {id:s.id, subTabId:s.sub_tab_id, name:s.name, aggField:s.agg_field, aggOp:s.agg_op, order:s.position};});
-    state.items = items.map(function(it){return {id:it.id, tab:it.tab, section:it.section, title:it.title, type:it.type, status:it.status, fields:it.fields||{}, subItems:it.sub_items||[], comments:it.comments||[], tags:it.tags||[], customFields:it.custom_fields||[], pinned:it.pinned, createdAt:it.created_at?it.created_at.slice(0,10):""};});
-    state.kpiWidgets = kpis.map(function(k){return {id:k.id, label:k.label, type:k.type, filter:k.filter||{}};});
-    state.settings = {};
+function _showApp(){
+  document.getElementById("mainTabNav").classList.remove("hidden");
+  document.getElementById("subTabNav").classList.remove("hidden");
+  var fb = document.getElementById("filterBar");
+  fb.style.display = ""; fb.classList.remove("hidden");
+}
 
-    document.getElementById("mainTabNav").classList.remove("hidden");
-    document.getElementById("subTabNav").classList.remove("hidden");
-    document.getElementById("filterBar").style.display = "";
-    document.getElementById("filterBar").classList.remove("hidden");
-    window.userDisplayName = currentProfile;
-    render();
-    updateNotifBadge();
+// ===== SAVE (debounced cloud sync of items) =====
+function saveData(){
+  if(!sb || !ownerId) return;
+  clearTimeout(window._cloudSyncTimer);
+  window._cloudSyncTimer = setTimeout(_syncNow, 1200);
+}
+
+function _syncNow(){
+  if(!sb || !ownerId) return;
+  _ensureTabsForKeys().then(function(){
+    var rows = state.items.map(function(it, idx){ return _itemToRow(it, idx); });
+    if(rows.length){
+      sb.from("items").upsert(rows, {onConflict:"id"}).then(function(res){
+        if(res.error) console.error("Item sync error:", res.error);
+      });
+    }
+    // Delete any cloud items no longer present in app state.
+    var ids = state.items.map(function(it){ return it.id; });
+    var del = sb.from("items").delete().eq("user_id", ownerId);
+    if(ids.length){ del = del.not("id", "in", "(" + ids.join(",") + ")"); }
+    del.then(function(res){ if(res.error) console.error("Item delete sync error:", res.error); });
   });
 }
 
-// ===== SAVE OPERATIONS =====
-// These replace the old saveData() function
-
-function cloudSaveItem(item){
-  if(!currentProfileId || !sb) return;
-  var row = {
-    id: item.id, profile_id: currentProfileId, tab: item.tab,
-    section: item.section || null, title: item.title, type: item.type,
-    status: item.status, fields: item.fields || {},
-    sub_items: item.subItems || [], comments: item.comments || [],
-    tags: item.tags || [], custom_fields: item.customFields || [],
-    pinned: item.pinned || false,
-    position: state.items.indexOf(item),
+function _itemToRow(it, idx){
+  var f = {}, src = it.fields || {}, k;
+  for(k in src){ if(src.hasOwnProperty(k) && k.charAt(0) !== "_") f[k] = src[k]; }
+  if(it.tags && it.tags.length) f._legacy_tags = it.tags; // preserve cross-tab tags
+  f._order = idx;
+  return {
+    id: it.id,
+    user_id: ownerId,
+    tab_id: _tabKeyToUuid[it.tab] || null,
+    section_id: null,
+    title: it.title,
+    type: it.type,
+    status: it.status,
+    fields: f,
+    sub_items: it.subItems || [],
+    comments: it.comments || [],
+    custom_fields: it.customFields || [],
+    pinned: !!it.pinned,
     updated_at: new Date().toISOString()
   };
-  sb.from('roots_items').upsert(row, {onConflict: 'id,profile_id'}).then(function(result){
-    if(result.error) console.error("Save item error:", result.error);
+}
+
+// Create tab rows for any item.tab key that has no cloud row yet.
+function _ensureTabsForKeys(){
+  var need = {}, i, key;
+  for(i = 0; i < state.items.length; i++){
+    key = state.items[i].tab;
+    if(key && !_tabKeyToUuid[key]) need[key] = true;
+  }
+  var keys = [];
+  for(key in need){ if(need.hasOwnProperty(key)) keys.push(key); }
+  if(!keys.length) return Promise.resolve();
+
+  var rows = keys.map(function(k, i){
+    var def = null, m;
+    for(m = 0; m < state.mainTabs.length; m++){ if(state.mainTabs[m].id === k){ def = state.mainTabs[m]; break; } }
+    var id = _uuidv4();
+    _tabKeyToUuid[k] = id; _tabUuidToKey[id] = k;
+    return {
+      id: id, user_id: ownerId,
+      name: def ? def.name : k,
+      icon: def ? def.icon : "",
+      color: def ? def.color : "#3b82f6",
+      order_index: 90 + i
+    };
+  });
+  return sb.from("tabs").upsert(rows, {onConflict:"id"}).then(function(res){
+    if(res.error) console.error("Tab ensure error:", res.error);
   });
 }
 
-function cloudDeleteItem(itemId){
-  if(!currentProfileId || !sb) return;
-  sb.from('roots_items').delete().eq('id', itemId).eq('profile_id', currentProfileId).then(function(result){
-    if(result.error) console.error("Delete item error:", result.error);
-  });
-}
-
-function cloudSaveTabs(){
-  if(!currentProfileId || !sb) return;
-  // Delete all and re-insert (simplest for reorder)
-  sb.from('roots_main_tabs').delete().eq('profile_id', currentProfileId).then(function(){
-    var rows = state.mainTabs.map(function(t, i){
-      return {id:t.id, profile_id:currentProfileId, name:t.name, icon:t.icon, color:t.color, position:i};
-    });
-    if(rows.length > 0) sb.from('roots_main_tabs').insert(rows);
-  });
-}
-
-function cloudSaveSubTabs(){
-  if(!currentProfileId || !sb) return;
-  sb.from('roots_sub_tabs').delete().eq('profile_id', currentProfileId).then(function(){
-    var rows = state.subTabs.map(function(s, i){
-      return {id:s.id, profile_id:currentProfileId, tab_id:s.tabId, name:s.name, mode:s.mode, filter:s.filter||{}, position:i};
-    });
-    if(rows.length > 0) sb.from('roots_sub_tabs').insert(rows);
-  });
-}
-
-function cloudSaveSections(){
-  if(!currentProfileId || !sb) return;
-  sb.from('roots_sections').delete().eq('profile_id', currentProfileId).then(function(){
-    var rows = state.sections.map(function(s, i){
-      return {id:s.id, profile_id:currentProfileId, sub_tab_id:s.subTabId, name:s.name, agg_field:s.aggField||"", agg_op:s.aggOp||"", position:s.order||i};
-    });
-    if(rows.length > 0) sb.from('roots_sections').insert(rows);
-  });
-}
-
-function cloudSaveKPIs(){
-  if(!currentProfileId || !sb) return;
-  sb.from('roots_kpi_widgets').delete().eq('profile_id', currentProfileId).then(function(){
-    var rows = state.kpiWidgets.map(function(k, i){
-      return {id:k.id, profile_id:currentProfileId, label:k.label, type:k.type, filter:k.filter||{}, position:i};
-    });
-    if(rows.length > 0) sb.from('roots_kpi_widgets').insert(rows);
-  });
-}
-
-function cloudSaveProfile(){
-  if(!currentProfileId || !sb) return;
-  sb.from('roots_profiles').update({
-    section_order: sectionOrder,
-    updated_at: new Date().toISOString()
-  }).eq('id', currentProfileId);
-}
-
-// ===== (localStorage cache removed — cloud only) =====
-
-function fallbackToLocal(){
-  // No more localStorage fallback — always require cloud auth
-  showLoginRequired();
-}
-
+// ===== LOGIN PROMPT =====
 function showLoginRequired(){
   document.getElementById("mainTabNav").innerHTML = "";
   document.getElementById("subTabNav").innerHTML = "";
@@ -228,22 +214,4 @@ function showLoginRequired(){
   html += '<button onclick="if(typeof requireAuth===\'function\')requireAuth(\'/roots/\');else window.location.href=\'/\';" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-medium text-sm">Sign In</button>';
   html += '</div></div>';
   document.getElementById("content").innerHTML = html;
-}
-
-// ===== ENHANCED saveData =====
-// Override saveData to save to cloud only (no localStorage)
-function saveData(){
-  if(!sb || !currentProfileId) return;
-  // Debounced cloud sync
-  clearTimeout(window._cloudSyncTimer);
-  window._cloudSyncTimer = setTimeout(function(){
-    cloudSaveTabs();
-    cloudSaveSubTabs();
-    cloudSaveSections();
-    cloudSaveKPIs();
-    cloudSaveProfile();
-    for(var i=0;i<state.items.length;i++){
-      cloudSaveItem(state.items[i]);
-    }
-  }, 1500);
 }
