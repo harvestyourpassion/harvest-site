@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Content — Harvest Your Passion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/nav.js"></script>
+<script src="/shared/devpanel.js"></script>
+<script src="/shared/pwa.js"></script>
+<link rel="stylesheet" href="/shared/h-components.css">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<style>
+  body { margin:0; background:var(--bg); color:var(--text-primary); font-family:Inter,system-ui,sans-serif; }
+  .c-wrap { padding:20px; max-width:1200px; margin:0 auto; }
+  .c-h1 { font-size:var(--text-2xl); font-weight:700; margin:0 0 4px; }
+  .c-sub { color:var(--text-secondary); margin:0 0 16px; }
+  .c-tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .c-board { display:flex; gap:12px; overflow-x:auto; padding-bottom:12px; }
+  .c-col { flex:0 0 220px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:10px; }
+  .c-col h3 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-secondary); margin:0 0 10px; }
+  .c-pcard { background:var(--elevated); border:1px solid var(--border); border-radius:var(--radius-md); padding:8px 10px; margin-bottom:8px; cursor:pointer; font-size:14px; }
+  .c-pcard:hover { border-color:var(--accent-blue); }
+</style>
+</head>
+<body>
+<div class="c-wrap h-scope">
+  <h1 class="c-h1">Content</h1>
+  <p class="c-sub">One source → many outputs. Knowledge compounds.</p>
+  <div class="c-tabs" id="c-tabs"></div>
+  <div class="h-row" style="gap:8px;margin-bottom:16px">
+    <span id="c-new"></span>
+  </div>
+  <div id="c-main"></div>
+</div>
+
+<script src="/shared/guard.js"></script>
+<script src="/content/content.js"></script>
+<script>
+  document.getElementById('c-main').innerHTML = H.loading({ skeleton:true, count:4 });
+  HGuard.require('admin').then(function(p){ Content.init(p); });
+</script>
+</body>
+</html>
