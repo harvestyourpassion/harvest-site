@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/shared/supabase.js"></script>
     <script src="/shared/nav.js"></script>
+<script src="/shared/pwa.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -32,6 +33,9 @@
         .time-slot:hover { transform: scale(1.05); }
         .time-slot.selected { background: #22c55e; color: white; transform: scale(1.05); }
     </style>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
 </head>
 <body class="bg-harvest-bg text-harvest-text min-h-screen">
     <!-- Coaching Sub-Navigation -->
