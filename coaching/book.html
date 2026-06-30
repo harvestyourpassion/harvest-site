@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Book Coaching — Harvest Your Passion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/nav.js"></script>
+<script src="/shared/devpanel.js"></script>
+<script src="/shared/pwa.js"></script>
+<link rel="stylesheet" href="/shared/h-components.css">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<style>
+  body { margin:0; background:var(--bg); color:var(--text-primary); font-family:Inter,system-ui,sans-serif; }
+  .bk-wrap { max-width:900px; margin:0 auto; padding:32px 20px; }
+  .bk-h1 { font-size:var(--text-3xl); font-weight:700; margin:0 0 4px; }
+  .bk-sub { color:var(--text-secondary); margin:0 0 24px; }
+  .bk-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; }
+  .bk-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px; display:flex; flex-direction:column; }
+  .bk-price { color:var(--accent-green); font-weight:700; font-size:28px; margin:6px 0; }
+  .bk-name { font-weight:700; font-size:18px; }
+  .bk-desc { color:var(--text-secondary); font-size:14px; margin:6px 0 14px; flex:1; }
+</style>
+</head>
+<body>
+<div class="bk-wrap h-scope" id="bk-root"></div>
+
+<script>
+  var COACH_ID = '389b085c-19f1-4b45-b989-a94cc7863288';
+  function param(k){ return new URLSearchParams(location.search).get(k); }
+  function money(n){ return '$' + Number(n||0).toLocaleString(); }
+
+  function init(){
+    var sb = window.getSb();
+    var root = document.getElementById('bk-root');
+
+    // Returning from successful payment
+    if (param('paid') === '1'){
+      root.innerHTML =
+        '<div class="h-empty"><div class="h-empty__icon">🎉</div>' +
+        '<div class="h-empty__title">Payment received — welcome aboard.</div>' +
+        '<p class="h-muted">You’re all set. Leo will reach out to schedule your first session, and your workspace is ready.</p>' +
+        '<div style="margin-top:16px">' + H.button({ label:'Open Roots', href:'/roots/' }) + '</div></div>';
+      return;
+    }
+
+    root.innerHTML = '<h1 class="bk-h1">Book a Session</h1><p class="bk-sub">Pick the package that fits where you’re at.</p>' + H.loading({ skeleton:true, count:3 });
+
+    sb.from('packages').select('*').eq('coach_id', COACH_ID).eq('is_active', true).order('price')
+      .then(function(res){
+        var pkgs = res.data || [];
+        var html = '<h1 class="bk-h1">Book a Session</h1><p class="bk-sub">Pick the package that fits where you’re at.</p>';
+        if (!pkgs.length){
+          html += H.empty({ icon:'📦', title:'No packages available', description:'Check back soon, or reach out.', cta:{ label:'Contact', href:'/contact/' } });
+          root.innerHTML = html; return;
+        }
+        html += '<div class="bk-grid">';
+        pkgs.forEach(function(p){
+          html += '<div class="bk-card">' +
+            '<div class="bk-name">' + H.esc(p.name) + '</div>' +
+            '<div class="bk-price">' + money(p.price) + '</div>' +
+            '<div class="bk-desc">' + H.esc(p.description||'') + '</div>' +
+            '<div class="h-row" style="gap:6px;flex-wrap:wrap;margin-bottom:12px">' +
+              H.badge(p.hours + ' hrs', 'neutral') +
+              (p.session_count ? H.badge(p.session_count + ' sessions', 'neutral') : '') +
+            '</div>' +
+            H.button({ label:'Book — ' + money(p.price), block:true, class:'bk-book', id:'book-'+p.id }) +
+          '</div>';
+        });
+        html += '</div>';
+        html += '<p class="h-muted" style="margin-top:18px;font-size:13px">Secure payment via Stripe. You’ll sign in first so your session and resources land in your account.</p>';
+        root.innerHTML = html;
+        pkgs.forEach(function(p){
+          var b = document.getElementById('book-'+p.id);
+          if (b) b.addEventListener('click', function(){ startCheckout(p.id); });
+        });
+
+        // Auto-resume checkout after OAuth round-trip
+        var resume = param('pkg');
+        if (resume) startCheckout(resume);
+      });
+  }
+
+  function startCheckout(packageId){
+    var sb = window.getSb();
+    window.getUser().then(function(user){
+      if (!user){
+        // Send to Google OAuth, return to this page and auto-resume this package
+        var back = window.location.origin + '/coaching/book.html?pkg=' + encodeURIComponent(packageId);
+        window.signIn(back);
+        return;
+      }
+      H.toast('Starting secure checkout…', 'info');
+      sb.functions.invoke('stripe-checkout', {
+        body: {
+          package_id: packageId,
+          client_email: user.email,
+          success_url: window.location.origin + '/coaching/book.html?paid=1',
+          cancel_url: window.location.origin + '/coaching/book.html'
+        }
+      }).then(function(res){
+        var data = res.data, error = res.error;
+        if (error || !data || !data.url){
+          var msg = (data && data.error) || (error && error.message) || 'Checkout unavailable';
+          if (String(msg).toLowerCase().indexOf('disabled') !== -1){
+            H.modal({ title:'Payments not live yet',
+              body:'<p class="h-muted">Online payment isn’t switched on yet. Reach out and Leo will get you booked directly.</p>',
+              actions:[{ label:'Contact', variant:'primary', href:'/contact/' }] });
+          } else {
+            H.toast(msg, 'error');
+          }
+          return;
+        }
+        window.location.href = data.url;
+      });
+    });
+  }
+
+  if (window.getSb && window.getSb()) init();
+  else document.addEventListener('DOMContentLoaded', function(){ setTimeout(init, 150); });
+</script>
+</body>
+</html>
