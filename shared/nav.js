@@ -48,6 +48,7 @@ function injectHarvestNav() {
             '<a href="/store/" style="text-decoration:none;color:' + lc('store') + ';">Store</a>' +
             '<a href="/about/" style="text-decoration:none;color:' + lc('about') + ';">About</a>' +
             '<a href="/contact/" style="text-decoration:none;color:' + lc('contact') + ';">Contact</a>' +
+            '<span id="harvest-nav-admin"></span>' +
             '<span id="harvest-nav-client"></span>' +
             '<span id="harvest-nav-auth" style="position:relative;"></span>' +
         '</div>' +
@@ -160,6 +161,28 @@ function editDisplayName() {
     }
 }
 
+// Admin-only nav links — shown only when profiles.role === 'admin'.
+// (RLS remains the real enforcement; this is just nav visibility.)
+function clearNavAdmin() {
+    var a = document.getElementById('harvest-nav-admin');
+    if (a) a.innerHTML = '';
+}
+
+function updateNavAdmin(userId) {
+    var a = document.getElementById('harvest-nav-admin');
+    var client = window.getSb ? window.getSb() : null;
+    if (!a || !client || !userId) return;
+    client.from('profiles').select('role').eq('id', userId).maybeSingle().then(function(res) {
+        if (res.data && res.data.role === 'admin') {
+            a.innerHTML =
+                '<a href="/garden/" style="text-decoration:none;color:#f59e0b;font-size:0.75rem;font-weight:600;">Garden</a>' +
+                '<a href="/content/" style="text-decoration:none;color:#f59e0b;font-size:0.75rem;font-weight:600;margin-left:1.25rem;">Content</a>';
+        } else {
+            a.innerHTML = '';
+        }
+    });
+}
+
 function updateNavAuth() {
     var el = document.getElementById('harvest-nav-auth');
     if (!el) return;
@@ -190,6 +213,9 @@ function updateNavAuth() {
                     '</div>' +
                 '</div>';
 
+                // Admin-only nav links (Garden + Content)
+                updateNavAdmin(user.id);
+
                 // Check coaching client
                 if (user.id && window.isCoachingClient) {
                     window.isCoachingClient(user.id).then(function(isClient) {
@@ -200,6 +226,7 @@ function updateNavAuth() {
                     });
                 }
             } else {
+                clearNavAdmin();
                 el.innerHTML = '<button onclick="signIn()" style="background:#22c55e;color:white;padding:0.3rem 0.85rem;border-radius:9999px;font-size:0.75rem;font-weight:500;cursor:pointer;border:none;">Log In</button>';
             }
         });
