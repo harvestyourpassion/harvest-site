@@ -1,6 +1,31 @@
 -- Harvest Platform — Phase 1 Foundation
--- Run in Supabase SQL Editor (project rjjhuugtwwimsijnmvwy).
--- Safe to re-run: uses IF NOT EXISTS / CREATE OR REPLACE throughout.
+-- Authoritative schema for spec v2.0 (project rjjhuugtwwimsijnmvwy).
+-- Decision (Leo, June 30 2026): spec v2.0 is canonical. An earlier partial
+-- Garden schema (sample data only) is dropped and rebuilt to match the spec.
+--
+-- DESTRUCTIVE: the drop block below removes all platform tables and their data.
+-- This is intentional — only throwaway sample data existed. auth.users is NOT
+-- touched. Re-running this file fully resets the schema.
+
+-- ============================================================
+-- DROP (clean rebuild — reverse dependency order, CASCADE for safety)
+-- ============================================================
+drop table if exists
+  content_relationships, content_assignments, content_versions, content_published, content_calendar, content_items,
+  messages, conversations,
+  client_activity, shared_items, resources,
+  notifications,
+  email_templates, coupons, invoices, payments, contracts,
+  survey_responses, survey_questions, surveys,
+  bookings, availability_overrides, availability, coach_calendars,
+  session_plan_topics, session_plans, session_notes, sessions, session_templates,
+  clients, packages, coaches,
+  templates, saved_views, kpi_widgets, item_relationships, items, sections, sub_tabs, tabs,
+  app_settings, feature_flags
+cascade;
+
+-- profiles is dropped last (referenced by many). Its trigger on auth.users is recreated below.
+drop table if exists profiles cascade;
 
 -- ============================================================
 -- PROFILES
@@ -177,16 +202,13 @@ create policy "sections_owner" on sections for all
   using (exists (select 1 from sub_tabs st join tabs t on t.id = st.tab_id where st.id = sections.sub_tab_id and t.user_id = auth.uid()))
   with check (exists (select 1 from sub_tabs st join tabs t on t.id = st.tab_id where st.id = sections.sub_tab_id and t.user_id = auth.uid()));
 
-drop policy if exists "items_owner_or_coach" on items;
-create policy "items_owner_or_coach" on items for all
+-- Owner + admin access. Coach access is added in the Garden section below,
+-- once the clients/coaches tables exist (see "items_coach_access").
+drop policy if exists "items_owner_or_admin" on items;
+create policy "items_owner_or_admin" on items for all
   using (
     auth.uid() = user_id
     or exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin')
-    or exists (
-      select 1 from clients c
-      join profiles coach on coach.id = auth.uid()
-      where c.user_id = items.user_id and c.coach_id = coach.id
-    )
   )
   with check (auth.uid() = user_id or exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'));
 
@@ -518,6 +540,25 @@ create policy "clients_coach_admin_or_self" on clients for all
     or exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin')
   );
 
+-- items coach access (deferred from Roots section — needs clients/coaches to exist).
+-- A coach can read/write the items of any client they own (powers "Act As Client").
+drop policy if exists "items_coach_access" on items;
+create policy "items_coach_access" on items for all
+  using (
+    exists (
+      select 1 from clients c
+      join coaches co on co.id = c.coach_id
+      where c.user_id = items.user_id and co.user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from clients c
+      join coaches co on co.id = c.coach_id
+      where c.user_id = items.user_id and co.user_id = auth.uid()
+    )
+  );
+
 -- Generic helper pattern for the remaining coach<->client tables: visible to the owning coach, the linked client, or admin
 drop policy if exists "session_templates_coach_or_admin" on session_templates;
 create policy "session_templates_coach_or_admin" on session_templates for all
@@ -596,11 +637,22 @@ create policy "surveys_coach_or_admin" on surveys for all
   with check (exists (select 1 from coaches c where c.id = surveys.coach_id and c.user_id = auth.uid())
     or exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'));
 
-drop policy if exists "survey_questions_via_survey" on survey_questions;
-create policy "survey_questions_via_survey" on survey_questions for all
+-- Questions are not sensitive: any authenticated user can read them (clients
+-- need them to fill surveys); only the owning coach or an admin can write.
+drop policy if exists "survey_questions_read" on survey_questions;
+create policy "survey_questions_read" on survey_questions for select using (auth.uid() is not null);
+drop policy if exists "survey_questions_write" on survey_questions;
+create policy "survey_questions_write" on survey_questions for insert
+  with check (exists (select 1 from surveys s join coaches c on c.id = s.coach_id where s.id = survey_questions.survey_id and c.user_id = auth.uid())
+    or exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'));
+drop policy if exists "survey_questions_update" on survey_questions;
+create policy "survey_questions_update" on survey_questions for update
   using (exists (select 1 from surveys s join coaches c on c.id = s.coach_id where s.id = survey_questions.survey_id and c.user_id = auth.uid())
-    or true)
-  with check (exists (select 1 from surveys s join coaches c on c.id = s.coach_id where s.id = survey_questions.survey_id and c.user_id = auth.uid()));
+    or exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'));
+drop policy if exists "survey_questions_delete" on survey_questions;
+create policy "survey_questions_delete" on survey_questions for delete
+  using (exists (select 1 from surveys s join coaches c on c.id = s.coach_id where s.id = survey_questions.survey_id and c.user_id = auth.uid())
+    or exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin'));
 
 drop policy if exists "survey_responses_client_or_coach" on survey_responses;
 create policy "survey_responses_client_or_coach" on survey_responses for all
