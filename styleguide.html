@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvest H-Component Styleguide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared/h-components.css">
+<style>
+  body { margin:0; background: var(--bg); color: var(--text-primary); font-family: Inter, system-ui, sans-serif; padding-bottom: 120px; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+  h2 { font-size: var(--text-xl); border-bottom:1px solid var(--border); padding-bottom:8px; margin-top:40px; }
+  .demo { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:12px 0; }
+  .grid3 { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
+  code { color: var(--accent-green); }
+</style>
+</head>
+<body>
+<div id="hdr"></div>
+<div class="wrap h-scope">
+  <h1>H-Component Library</h1>
+  <p class="h-muted">Living styleguide — verifies every Foundation component renders. Spec v2.0 §3.</p>
+
+  <h2>Buttons</h2>
+  <div class="demo" id="d-btn"></div>
+
+  <h2>Badges &amp; Type Badges</h2>
+  <div class="demo" id="d-badge"></div>
+
+  <h2>Inputs</h2>
+  <div id="d-input" style="max-width:420px"></div>
+
+  <h2>Cards</h2>
+  <div id="d-card"></div>
+  <div id="d-expand" style="margin-top:12px"></div>
+
+  <h2>KPI Cards</h2>
+  <div class="demo" id="d-kpi"></div>
+
+  <h2>Tab Bar</h2>
+  <div id="d-tabs"></div>
+
+  <h2>States: Empty / Error / Loading</h2>
+  <div class="grid3">
+    <div class="h-card" id="d-empty"></div>
+    <div class="h-card" id="d-error"></div>
+    <div class="h-card" id="d-loading"></div>
+  </div>
+
+  <h2>Grip handle &amp; Mode toggle</h2>
+  <div class="demo" id="d-misc"></div>
+
+  <h2>Overlays</h2>
+  <div class="demo" id="d-overlays"></div>
+</div>
+
+<div id="bnav"></div>
+
+<script src="/shared/h-components.js"></script>
+<script>
+  document.getElementById('hdr').innerHTML = H.header({
+    title: 'Harvest Your Passion',
+    actions: H.button({ label: 'Sign In', variant: 'secondary' })
+  });
+
+  document.getElementById('d-btn').innerHTML =
+    H.button({ label: 'Primary' }) +
+    H.button({ label: 'Secondary', variant: 'secondary' }) +
+    H.button({ label: 'Ghost', variant: 'ghost' }) +
+    H.button({ label: 'Destructive', variant: 'destructive' }) +
+    H.button({ label: 'Loading', loading: true }) +
+    H.button({ label: 'Disabled', disabled: true });
+
+  document.getElementById('d-badge').innerHTML =
+    H.badge('Active', 'active') + H.badge('Done', 'done') + H.badge('Overdue', 'overdue') +
+    H.badge('Paused', 'paused') + ' &nbsp; ' +
+    H.typeBadge('Task') + H.typeBadge('Goal') + H.typeBadge('Habit') + H.typeBadge('Bill') + H.typeBadge('Contact');
+
+  document.getElementById('d-input').innerHTML =
+    H.input({ label: 'Title', placeholder: 'Enter a title' }) +
+    H.input({ label: 'Notes', type: 'textarea', placeholder: 'Longer text...' }) +
+    H.input({ label: 'Type', type: 'select', options: ['Task', 'Goal', 'Habit'], value: 'Goal' });
+
+  document.getElementById('d-card').innerHTML =
+    H.card({ body: '<strong>Standard card</strong><div class="h-muted">Base container.</div>' }) +
+    '<div style="height:8px"></div>' +
+    H.card({ overdue: true, body: '<strong>Overdue card</strong> ' + H.badge('Overdue', 'overdue') }) +
+    '<div style="height:8px"></div>' +
+    H.card({ pinned: true, body: '<strong>Pinned card</strong> ' + H.badge('Pinned', 'paused') });
+
+  document.getElementById('d-expand').innerHTML =
+    H.expandableCard({
+      header: '<strong>Launch Website</strong>',
+      meta: H.badge('Active', 'active'),
+      expand: '<div class="h-muted">Sub-items, comments, custom fields render here. Click header to toggle.</div>'
+    });
+
+  document.getElementById('d-kpi').innerHTML =
+    H.kpiCard({ value: '12', label: 'Tasks', trend: 8 }) +
+    H.kpiCard({ value: '4', label: 'Goals' }) +
+    H.kpiCard({ value: '$2.0K', label: 'Bills', trend: -3 });
+
+  document.getElementById('d-tabs').innerHTML = H.tabBar({
+    tabs: [{ label: 'All', active: true }, { label: 'Life' }, { label: 'Business' }, { label: 'Goals' }]
+  });
+
+  document.getElementById('d-empty').innerHTML = H.empty({ title: 'No items yet', description: 'Add your first item.', cta: { label: 'Add Item' } });
+  document.getElementById('d-error').innerHTML = H.error({ title: 'Failed to load', message: 'Check your connection.' });
+  document.getElementById('d-loading').innerHTML = H.loading({ skeleton: true, count: 3 });
+
+  document.getElementById('d-misc').innerHTML =
+    '<div class="h-card h-row">' + H.gripHandle() + ' Drag me</div>' +
+    H.modeToggle({ modes: ['simple', 'guided', 'builder'], value: 'simple' });
+
+  document.getElementById('d-overlays').innerHTML =
+    H.button({ label: 'Open Modal', id: 'btn-modal' }) +
+    H.button({ label: 'Open Drawer', variant: 'secondary', id: 'btn-drawer' }) +
+    H.button({ label: 'Toast', variant: 'ghost', id: 'btn-toast' });
+
+  document.getElementById('btn-modal').addEventListener('click', function () {
+    H.modal({
+      title: 'Add Item',
+      body: H.input({ label: 'Title', placeholder: 'What needs doing?' }),
+      actions: [
+        { label: 'Cancel', variant: 'ghost', onclick: '' },
+        { label: 'Save', variant: 'primary' }
+      ],
+      onMount: function (ctl) {
+        ctl.el.querySelector('.h-btn--ghost').addEventListener('click', ctl.close);
+        ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () { ctl.close(); H.toast('Saved!', 'success'); });
+      }
+    });
+  });
+  document.getElementById('btn-drawer').addEventListener('click', function () {
+    H.drawer({ title: 'Filters', body: H.input({ label: 'Status', type: 'select', options: ['Active', 'Done'] }) });
+  });
+  document.getElementById('btn-toast').addEventListener('click', function () { H.toast('This is a toast notification', 'info'); });
+
+  document.getElementById('bnav').innerHTML = H.bottomNav({
+    items: [
+      { label: 'Dashboard', icon: '&#127968;', active: true },
+      { label: 'Calendar', icon: '&#128197;' },
+      { label: 'Resources', icon: '&#128218;' },
+      { label: 'Messages', icon: '&#128172;' },
+      { label: 'More', icon: '&#8943;' }
+    ]
+  });
+  document.body.insertAdjacentHTML('beforeend', H.fab({ ariaLabel: 'Add', onclick: "H.toast('FAB tapped','info')" }));
+</script>
+</body>
+</html>
