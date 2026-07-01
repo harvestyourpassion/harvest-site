@@ -225,7 +225,7 @@ function updateNavAuth() {
                     window.isCoachingClient(user.id).then(function(isClient) {
                         var clientEl = document.getElementById('harvest-nav-client');
                         if (isClient && clientEl) {
-                            clientEl.innerHTML = '<a href="/coaching/sessions" style="text-decoration:none;color:#22c55e;font-size:0.75rem;font-weight:500;">My Sessions</a>';
+                            clientEl.innerHTML = '<a href="/messages/" style="text-decoration:none;color:#22c55e;font-size:0.75rem;font-weight:500;">Messages</a>';
                         }
                     });
                 }

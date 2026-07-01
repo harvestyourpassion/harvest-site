@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messages — Harvest Your Passion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/nav.js"></script>
+<script src="/shared/devpanel.js"></script>
+<script src="/shared/pwa.js"></script>
+<link rel="stylesheet" href="/shared/h-components.css">
+<script src="/shared/h-components.js"></script>
+<script src="/shared/messaging.js"></script>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<style>
+  body { margin:0; background:var(--bg); color:var(--text-primary); font-family:Inter,system-ui,sans-serif; }
+  .m-wrap { max-width:680px; margin:0 auto; padding:24px 16px; }
+</style>
+</head>
+<body>
+<div class="m-wrap h-scope" id="m-root"></div>
+<script>
+  function start(){ Messaging.mount(document.getElementById('m-root')); }
+  if (window.getSb && window.getSb()) start();
+  else document.addEventListener('DOMContentLoaded', function(){ setTimeout(start,150); });
+</script>
+</body>
+</html>

@@ -77,6 +77,7 @@
     m.innerHTML = H.loading({ skeleton: true, count: 3 });
     if (view === 'dashboard') return renderDashboard(m);
     if (view === 'clients') return renderClients(m);
+    if (view === 'messages') return w.Messaging.mount(m);
     if (view === 'client') return renderClient(m, arg);
     if (view === 'session') return renderSession(m, arg);
     if (view === 'sessions') return renderSessions(m);
