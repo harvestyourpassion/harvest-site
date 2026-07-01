@@ -491,9 +491,17 @@
               duration_minutes: parseInt(document.getElementById('gs-dur').value, 10) || 60,
               mode: document.getElementById('gs-mode').value, status: 'scheduled'
             };
-            sb.from('sessions').insert(row).then(function (res) {
-              if (res.error) H.toast('Failed: ' + res.error.message, 'error');
-              else { H.toast('Session scheduled', 'success'); ctl.close(); show('sessions'); }
+            sb.from('sessions').insert(row).select('id').maybeSingle().then(function (res) {
+              if (res.error) { H.toast('Failed: ' + res.error.message, 'error'); return; }
+              var sessionId = res.data && res.data.id;
+              // Attach a Zoom link (best-effort; server-side gated by zoom flag).
+              sb.functions.invoke('zoom-meeting', {
+                body: { topic: 'Harvest Coaching Session', start_time: row.scheduled_at, duration: row.duration_minutes, session_id: sessionId }
+              }).then(function (z) {
+                if (z && z.data && z.data.join_url) H.toast('Session scheduled + Zoom link added', 'success');
+                else H.toast('Session scheduled', 'success');
+                ctl.close(); show('sessions');
+              }).catch(function () { H.toast('Session scheduled', 'success'); ctl.close(); show('sessions'); });
             });
           });
         }

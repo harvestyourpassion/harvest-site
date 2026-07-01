@@ -54,8 +54,29 @@ signing secret into `STRIPE_WEBHOOK_SECRET`, and re-deploy.
 Provision a phone number first (Twilio console → Phone Numbers), then set
 `TWILIO_PHONE_NUMBER`. Trial accounts can only SMS verified numbers.
 
+## Post-payment automation (live)
+`stripe-webhook` on `checkout.session.completed` now: links the client to their
+Roots profile + activates them, records the payment, creates a pending contract,
+seeds an in-app onboarding checklist (notifications), logs the timeline, and
+fires a best-effort welcome email. The booking success page then lets the client
+pick a slot from `availability`, which creates the session and attaches a Zoom
+link via `zoom-meeting`.
+
+## Additional functions
+- `send-email` — Resend-backed; gated by `email_enabled` flag + `RESEND_API_KEY`.
+  Enable: `supabase secrets set RESEND_API_KEY=... EMAIL_FROM="Harvest <you@yourdomain>"`
+  then `update feature_flags set enabled=true where key='email_enabled';`
+  Deploy: `supabase functions deploy send-email`.
+- `send-reminders` — call on a schedule; sends 48h/24h/1h session reminders via
+  `send-sms`/`send-email` (both flag-gated). Deploy:
+  `supabase functions deploy send-reminders`.
+
+## Reminder cron (when ready)
+Needs a Twilio number (`TWILIO_PHONE_NUMBER`) and/or `email_enabled`. Schedule
+`send-reminders` every 15 min — easiest via Supabase Dashboard → Database →
+Cron (pg_cron + pg_net), calling the function URL with the service-role key. Or
+any external cron hitting the function URL.
+
 ## Still TODO
 - `google-calendar`: needs an OAuth refresh-token flow (store per-coach token,
   refresh, two-way sync availability ↔ events). Scoped but not yet written.
-- Reminder scheduler: a cron (pg_cron or scheduled function) that queries
-  upcoming sessions and calls `send-sms` at 48h/24h/1h.

@@ -38,13 +38,9 @@
     var sb = window.getSb();
     var root = document.getElementById('bk-root');
 
-    // Returning from successful payment
+    // Returning from successful payment → schedule the first session.
     if (param('paid') === '1'){
-      root.innerHTML =
-        '<div class="h-empty"><div class="h-empty__icon">🎉</div>' +
-        '<div class="h-empty__title">Payment received — welcome aboard.</div>' +
-        '<p class="h-muted">You’re all set. Leo will reach out to schedule your first session, and your workspace is ready.</p>' +
-        '<div style="margin-top:16px">' + H.button({ label:'Open Roots', href:'/roots/' }) + '</div></div>';
+      scheduleFlow(root);
       return;
     }
 
@@ -127,6 +123,112 @@
       console.error('[book] checkout failed:', err);
       H.toast('Checkout error: ' + (err && err.message ? err.message : err), 'error');
     });
+  }
+
+  // ===== Post-payment: schedule first session from coach availability =====
+  function welcomeCard(extra){
+    return '<div class="h-empty"><div class="h-empty__icon">🎉</div>' +
+      '<div class="h-empty__title">Payment received — welcome aboard.</div>' +
+      '<p class="h-muted">' + (extra || 'Your workspace is ready.') + '</p>' +
+      '<div style="margin-top:16px">' + H.button({ label:'Open Roots', href:'/roots/' }) + '</div></div>';
+  }
+
+  function scheduleFlow(root){
+    var sb = window.getSb();
+    root.innerHTML = H.loading({ skeleton:true, count:2 });
+    window.getUser().then(function(user){
+      if (!user){ root.innerHTML = welcomeCard('You’re all set. Sign in any time to schedule.'); return; }
+      Promise.all([
+        sb.from('clients').select('id').eq('coach_id', COACH_ID).eq('email', user.email).maybeSingle(),
+        sb.from('availability').select('*').eq('coach_id', COACH_ID),
+        sb.from('sessions').select('scheduled_at').eq('coach_id', COACH_ID)
+      ]).then(function(res){
+        var client = res[0].data;
+        var avail = res[1].data || [];
+        var booked = (res[2].data || []).map(function(s){ return new Date(s.scheduled_at).getTime(); });
+        var slots = buildSlots(avail, booked);
+        var html = '<h1 class="bk-h1">🎉 You’re in — pick your first session</h1>' +
+          '<p class="bk-sub">Choose a time that works. You’ll get a Zoom link instantly.</p>';
+        if (!slots.length){
+          root.innerHTML = welcomeCard('You’re all set. Leo will reach out to schedule your first session.');
+          return;
+        }
+        html += '<div style="display:flex;flex-direction:column;gap:16px">';
+        var byDay = {};
+        slots.forEach(function(s){ (byDay[s.dayLabel]=byDay[s.dayLabel]||[]).push(s); });
+        Object.keys(byDay).forEach(function(day){
+          html += '<div><div style="font-weight:600;margin-bottom:6px">' + day + '</div><div class="h-row" style="flex-wrap:wrap;gap:8px">';
+          byDay[day].forEach(function(s){
+            html += '<button class="h-btn h-btn--secondary bk-slot" data-iso="' + s.iso + '" style="min-height:38px">' + s.timeLabel + '</button>';
+          });
+          html += '</div></div>';
+        });
+        html += '</div>';
+        html += '<div style="margin-top:16px">' + H.button({ label:'Skip for now', variant:'ghost', href:'/roots/' }) + '</div>';
+        root.innerHTML = html;
+        root.querySelectorAll('.bk-slot').forEach(function(b){
+          b.addEventListener('click', function(){ bookSlot(client, b.getAttribute('data-iso'), root); });
+        });
+      }).catch(function(e){ root.innerHTML = welcomeCard('You’re all set. (Scheduling will be available shortly.)'); console.error('[book] schedule load', e); });
+    });
+  }
+
+  function buildSlots(avail, bookedTimes){
+    // Weekly recurring hours → hourly slots for the next 14 days, excluding booked.
+    var byDow = {};
+    avail.forEach(function(a){ if (a.day_of_week != null) byDow[a.day_of_week] = a; });
+    var out = [], now = new Date();
+    for (var d = 1; d <= 14 && out.length < 24; d++){
+      var day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d);
+      var a = byDow[day.getDay()];
+      if (!a) continue;
+      var sh = parseInt((a.start_time||'09:00').slice(0,2),10);
+      var eh = parseInt((a.end_time||'17:00').slice(0,2),10);
+      for (var h = sh; h < eh; h++){
+        var slot = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, 0, 0);
+        if (bookedTimes.indexOf(slot.getTime()) !== -1) continue;
+        out.push({
+          iso: slot.toISOString(),
+          dayLabel: slot.toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'}),
+          timeLabel: slot.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})
+        });
+        if (out.length >= 24) break;
+      }
+    }
+    return out;
+  }
+
+  function bookSlot(client, iso, root){
+    var sb = window.getSb();
+    H.toast('Booking your session…', 'info');
+    if (!client){ // safety: client record not linked yet
+      root.innerHTML = welcomeCard('You’re all set. Leo will confirm your session time shortly.');
+      return;
+    }
+    sb.from('sessions').insert({
+      client_id: client.id, coach_id: COACH_ID, scheduled_at: iso,
+      duration_minutes: 60, mode: 'coaching', status: 'scheduled'
+    }).select('id').maybeSingle().then(function(res){
+      if (res.error || !res.data){ H.toast('Could not book: ' + (res.error && res.error.message), 'error'); return; }
+      var sessionId = res.data.id;
+      // Attach a Zoom link (best-effort; gated by zoom flag server-side).
+      sb.functions.invoke('zoom-meeting', {
+        body: { topic:'Harvest Coaching Session', start_time: iso, duration: 60, session_id: sessionId }
+      }).then(function(z){
+        var link = z && z.data && z.data.join_url;
+        showBooked(root, iso, link);
+      }).catch(function(){ showBooked(root, iso, null); });
+    });
+  }
+
+  function showBooked(root, iso, zoomLink){
+    var when = new Date(iso).toLocaleString(undefined,{weekday:'long',month:'long',day:'numeric',hour:'numeric',minute:'2-digit'});
+    root.innerHTML = '<div class="h-empty"><div class="h-empty__icon">✅</div>' +
+      '<div class="h-empty__title">Session booked</div>' +
+      '<p class="h-muted">' + when + '</p>' +
+      (zoomLink ? '<p style="margin-top:8px"><a href="' + H.esc(zoomLink) + '" style="color:var(--accent-green);font-weight:600">Your Zoom link</a></p>'
+                : '<p class="h-muted" style="margin-top:8px">A Zoom link will be sent before your session.</p>') +
+      '<div style="margin-top:16px">' + H.button({ label:'Open Roots', href:'/roots/' }) + '</div></div>';
   }
 
   if (window.getSb && window.getSb()) init();
