@@ -17,13 +17,19 @@
 <style>
   body { margin:0; background:var(--bg); color:var(--text-primary); font-family:Inter,system-ui,sans-serif; }
   .bk-wrap { max-width:900px; margin:0 auto; padding:32px 20px; }
-  .bk-h1 { font-size:var(--text-3xl); font-weight:700; margin:0 0 4px; }
-  .bk-sub { color:var(--text-secondary); margin:0 0 24px; }
+  .bk-h1 { font-size:var(--text-3xl); font-weight:700; margin:0 0 4px; color:#f1f5f9; }
+  /* Lighter than --text-secondary for readable body copy on the dark bg. */
+  .bk-sub { color:#cbd5e1; margin:0 0 24px; font-size:16px; }
   .bk-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; }
   .bk-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px; display:flex; flex-direction:column; }
-  .bk-price { color:var(--accent-green); font-weight:700; font-size:28px; margin:6px 0; }
-  .bk-name { font-weight:700; font-size:18px; }
-  .bk-desc { color:var(--text-secondary); font-size:14px; margin:6px 0 14px; flex:1; }
+  .bk-price { color:#4ade80; font-weight:700; font-size:28px; margin:6px 0; }
+  .bk-name { font-weight:700; font-size:18px; color:#f1f5f9; }
+  .bk-desc { color:#cbd5e1; font-size:14px; margin:6px 0 14px; flex:1; line-height:1.5; }
+  /* High-contrast, clearly-clickable time slots. */
+  .bk-slot { background:var(--elevated) !important; color:#f1f5f9 !important; border:1px solid #64748b !important; font-weight:600; }
+  .bk-slot:hover { background:var(--accent-blue) !important; border-color:var(--accent-blue) !important; color:#fff !important; }
+  .h-empty__title { color:#f1f5f9; }
+  .h-muted { color:#cbd5e1 !important; }
 </style>
 </head>
 <body>
@@ -137,16 +143,33 @@
     var sb = window.getSb();
     root.innerHTML = H.loading({ skeleton:true, count:2 });
     window.getUser().then(function(user){
-      if (!user){ root.innerHTML = welcomeCard('You’re all set. Sign in any time to schedule.'); return; }
+      if (!user){
+        // Scheduling requires authentication — never show slots to a signed-out visitor.
+        root.innerHTML = '<div class="h-empty"><div class="h-empty__icon">🔒</div>' +
+          '<div class="h-empty__title">Please sign in to schedule</div>' +
+          '<p class="h-muted">Sign in with the account you booked with to pick your session time.</p>' +
+          '<div style="margin-top:16px">' + H.button({ label:'Sign in', id:'bk-signin' }) + '</div></div>';
+        var sb2 = document.getElementById('bk-signin');
+        if (sb2) sb2.addEventListener('click', function(){ window.signIn(window.location.origin + '/coaching/book.html?paid=1'); });
+        return;
+      }
+      var nowMs = Date.now();
       Promise.all([
         sb.from('clients').select('id').eq('coach_id', COACH_ID).eq('email', user.email).maybeSingle(),
         sb.from('availability').select('*').eq('coach_id', COACH_ID),
-        sb.from('sessions').select('scheduled_at').eq('coach_id', COACH_ID)
+        sb.from('sessions').select('scheduled_at').eq('coach_id', COACH_ID),
+        // Real free/busy from the coach's Google Calendar (no-op if not connected/disabled).
+        sb.functions.invoke('google-calendar', { body: {
+          action: 'freebusy', coach_id: COACH_ID,
+          time_min: new Date(nowMs).toISOString(),
+          time_max: new Date(nowMs + 15*864e5).toISOString()
+        }}).then(function(r){ return r; }).catch(function(){ return { data:{ busy:[] } }; })
       ]).then(function(res){
         var client = res[0].data;
         var avail = res[1].data || [];
         var booked = (res[2].data || []).map(function(s){ return new Date(s.scheduled_at).getTime(); });
-        var slots = buildSlots(avail, booked);
+        var busy = (res[3] && res[3].data && res[3].data.busy) || [];
+        var slots = buildSlots(avail, booked, busy);
         var html = '<h1 class="bk-h1">🎉 You’re in — pick your first session</h1>' +
           '<p class="bk-sub">Choose a time that works. You’ll get a Zoom link instantly.</p>';
         if (!slots.length){
@@ -173,8 +196,14 @@
     });
   }
 
-  function buildSlots(avail, bookedTimes){
-    // Weekly recurring hours → hourly slots for the next 14 days, excluding booked.
+  function buildSlots(avail, bookedTimes, busy){
+    // Weekly recurring hours → hourly slots for the next 14 days, excluding
+    // already-booked sessions AND Google Calendar busy intervals.
+    busy = (busy || []).map(function(b){ return { s:new Date(b.start).getTime(), e:new Date(b.end).getTime() }; });
+    function isBusy(startMs, endMs){
+      for (var i=0;i<busy.length;i++){ if (startMs < busy[i].e && endMs > busy[i].s) return true; }
+      return false;
+    }
     var byDow = {};
     avail.forEach(function(a){ if (a.day_of_week != null) byDow[a.day_of_week] = a; });
     var out = [], now = new Date();
@@ -187,6 +216,7 @@
       for (var h = sh; h < eh; h++){
         var slot = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, 0, 0);
         if (bookedTimes.indexOf(slot.getTime()) !== -1) continue;
+        if (isBusy(slot.getTime(), slot.getTime()+3600000)) continue;
         out.push({
           iso: slot.toISOString(),
           dayLabel: slot.toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'}),
@@ -216,6 +246,8 @@
         body: { topic:'Harvest Coaching Session', start_time: iso, duration: 60, session_id: sessionId }
       }).then(function(z){
         var link = z && z.data && z.data.join_url;
+        // Push onto the coach's Google Calendar (no-op if not connected/disabled).
+        sb.functions.invoke('google-calendar', { body: { action:'create-event', coach_id: COACH_ID, session_id: sessionId } }).catch(function(){});
         showBooked(root, iso, link);
       }).catch(function(){ showBooked(root, iso, null); });
     });

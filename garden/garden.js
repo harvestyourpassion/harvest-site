@@ -14,7 +14,37 @@
     profile = p;
     sb = w.getSb();
     bindNav();
-    loadCoach().then(function () { show('dashboard'); });
+    loadCoach().then(function () {
+      // Returning from Google Calendar OAuth consent? Capture the refresh token.
+      if (new URLSearchParams(w.location.search).get('calconnect') === '1') {
+        captureCalendarToken();
+      } else {
+        show('dashboard');
+      }
+    });
+  }
+
+  function captureCalendarToken() {
+    var m = $main();
+    m.innerHTML = H.loading({ skeleton: true, count: 1 });
+    sb.auth.getSession().then(function (res) {
+      var s = res.data.session;
+      var refresh = s && s.provider_refresh_token;
+      var access = s && s.provider_token;
+      if (!refresh) {
+        H.toast('Google didn’t return a refresh token — try Connect again and allow offline access.', 'error');
+        history.replaceState({}, '', '/garden/');
+        show('settings'); return;
+      }
+      sb.functions.invoke('google-calendar', {
+        body: { action: 'connect', coach_id: coach.id, refresh_token: refresh, access_token: access, email: (s.user && s.user.email) }
+      }).then(function (r) {
+        if (r && r.data && r.data.connected) H.toast('Google Calendar connected', 'success');
+        else H.toast('Connect failed: ' + ((r.data && r.data.error) || (r.error && r.error.message) || '?'), 'error');
+        history.replaceState({}, '', '/garden/');
+        show('settings');
+      }).catch(function (e) { H.toast('Connect error: ' + e.message, 'error'); show('settings'); });
+    });
   }
 
   function bindNav() {
@@ -409,9 +439,45 @@
         }
         html += '</div>';
         html += '<div style="margin-top:16px">' + H.button({ label: 'Save Availability', id: 'g-save-avail' }) + '</div>';
+        html += '<div class="g-section-title">Google Calendar</div>';
+        html += '<div id="g-cal-block" class="h-card">' + H.loading({}) + '</div>';
         m.innerHTML = html;
         document.getElementById('g-save-avail').addEventListener('click', saveAvailability);
+        renderCalendarBlock();
       });
+  }
+
+  function renderCalendarBlock() {
+    var block = document.getElementById('g-cal-block');
+    if (!block) return;
+    sb.functions.invoke('google-calendar', { body: { action: 'status', coach_id: coach.id } }).then(function (r) {
+      var connected = r && r.data && r.data.connected;
+      var email = r && r.data && r.data.email;
+      if (connected) {
+        block.innerHTML = '<div class="h-row" style="justify-content:space-between">' +
+          '<span>' + H.badge('Connected', 'active') + ' <span class="h-muted">' + H.esc(email || '') + '</span></span>' +
+          H.button({ label: 'Disconnect', variant: 'ghost', id: 'g-cal-disc' }) + '</div>' +
+          '<p class="h-muted" style="font-size:13px;margin-top:8px">Booked times are checked against your Google Calendar so clients only see when you’re actually free.</p>';
+        document.getElementById('g-cal-disc').addEventListener('click', function () {
+          sb.functions.invoke('google-calendar', { body: { action: 'disconnect', coach_id: coach.id } }).then(function () { H.toast('Disconnected', 'info'); renderCalendarBlock(); });
+        });
+      } else {
+        block.innerHTML = '<p class="h-muted" style="font-size:13px;margin-bottom:10px">Connect your Google Calendar so availability reflects your real schedule.</p>' +
+          H.button({ label: 'Connect Google Calendar', id: 'g-cal-conn' });
+        document.getElementById('g-cal-conn').addEventListener('click', connectCalendar);
+      }
+    }).catch(function () { block.innerHTML = H.error({ title: 'Calendar status unavailable' }); });
+  }
+
+  function connectCalendar() {
+    sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        scopes: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events',
+        redirectTo: w.location.origin + '/garden/?calconnect=1',
+        queryParams: { access_type: 'offline', prompt: 'consent' }
+      }
+    });
   }
 
   function saveAvailability() {
@@ -498,6 +564,8 @@
               sb.functions.invoke('zoom-meeting', {
                 body: { topic: 'Harvest Coaching Session', start_time: row.scheduled_at, duration: row.duration_minutes, session_id: sessionId }
               }).then(function (z) {
+                // Also push to Google Calendar (no-op if not connected/disabled).
+                sb.functions.invoke('google-calendar', { body: { action: 'create-event', coach_id: coach.id, session_id: sessionId } }).catch(function () {});
                 if (z && z.data && z.data.join_url) H.toast('Session scheduled + Zoom link added', 'success');
                 else H.toast('Session scheduled', 'success');
                 ctl.close(); show('sessions');
