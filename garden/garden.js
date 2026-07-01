@@ -81,6 +81,7 @@
     if (view === 'client') return renderClient(m, arg);
     if (view === 'session') return renderSession(m, arg);
     if (view === 'sessions') return renderSessions(m);
+    if (view === 'templates') return renderTemplates(m);
     if (view === 'packages') return renderPackages(m);
     if (view === 'billing') return renderBilling(m);
     if (view === 'surveys') return renderSurveys(m);
@@ -386,6 +387,71 @@
     });
   }
 
+  // ---------- Session Templates ----------
+  var TPL_CATEGORIES = ['career', 'leadership', 'business', 'accountability', 'mindset', 'faith', 'review', 'planning'];
+  function renderTemplates(m) {
+    sb.from('session_templates').select('*').eq('coach_id', coach ? coach.id : '0').order('created_at', { ascending: false })
+      .then(function (res) {
+        var tpls = res.data || [];
+        var html = head('Session Templates', 'Reusable structures for your sessions');
+        html += '<div style="margin-bottom:16px">' + H.button({ label: '+ New Template', id: 'g-new-tpl' }) + '</div>';
+        if (!tpls.length) {
+          html += H.card({ body: H.empty({ icon: '🗂️', title: 'No templates yet', description: 'Save a structure (topics, mode, tools) to reuse across sessions.' }) });
+        } else {
+          html += '<div style="display:flex;flex-direction:column;gap:10px">';
+          tpls.forEach(function (t) {
+            var topics = (t.structure && t.structure.topics) || [];
+            html += '<div class="h-card" data-tpl="' + H.esc(t.id) + '" style="cursor:pointer">' +
+              '<div class="h-row" style="justify-content:space-between"><strong>' + H.esc(t.name) + '</strong>' +
+              (t.category ? H.badge(t.category, 'neutral') : '') + '</div>' +
+              (topics.length ? '<div class="h-muted" style="font-size:13px;margin-top:4px">' + topics.length + ' topics</div>' : '') + '</div>';
+          });
+          html += '</div>';
+        }
+        m.innerHTML = html;
+        document.getElementById('g-new-tpl').addEventListener('click', function () { templateModal(null); });
+        m.querySelectorAll('[data-tpl]').forEach(function (el) {
+          var t = tpls.find(function (x) { return x.id === el.getAttribute('data-tpl'); });
+          el.addEventListener('click', function () { templateModal(t); });
+        });
+      });
+  }
+
+  function templateModal(t) {
+    t = t || {};
+    var struct = t.structure || {};
+    H.modal({
+      title: t.id ? 'Edit Template' : 'New Session Template',
+      body: H.input({ id: 'tpl-name', label: 'Name', value: t.name || '' }) +
+        H.input({ id: 'tpl-cat', label: 'Category', type: 'select', options: TPL_CATEGORIES, value: t.category || 'coaching' }) +
+        H.input({ id: 'tpl-desc', label: 'Description', type: 'textarea', value: t.description || '' }) +
+        H.input({ id: 'tpl-topics', label: 'Topics (one per line)', type: 'textarea', value: (struct.topics || []).join('\n') }) +
+        H.input({ id: 'tpl-mode', label: 'Default mode', type: 'select', options: ['coaching', 'personal_dev', 'mixed'], value: struct.mode || 'coaching' }) +
+        H.input({ id: 'tpl-tools', label: 'Tools (comma-separated)', value: (struct.tools || []).join(', ') }),
+      actions: (t.id ? [{ label: 'Delete', variant: 'destructive' }] : []).concat([{ label: 'Save', variant: 'primary' }]),
+      onMount: function (ctl) {
+        if (t.id) ctl.el.querySelector('.h-btn--destructive').addEventListener('click', function () {
+          sb.from('session_templates').delete().eq('id', t.id).then(function () { H.toast('Deleted', 'info'); ctl.close(); show('templates'); });
+        });
+        ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
+          var name = document.getElementById('tpl-name').value.trim();
+          if (!name) { H.toast('Name required', 'error'); return; }
+          var structure = {
+            topics: document.getElementById('tpl-topics').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean),
+            mode: document.getElementById('tpl-mode').value,
+            tools: document.getElementById('tpl-tools').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean)
+          };
+          var row = { coach_id: coach.id, name: name, description: document.getElementById('tpl-desc').value, category: document.getElementById('tpl-cat').value, structure: structure };
+          var op = t.id ? sb.from('session_templates').update(row).eq('id', t.id) : sb.from('session_templates').insert(row);
+          op.then(function (r) {
+            if (r.error) H.toast('Failed: ' + r.error.message, 'error');
+            else { H.toast('Saved', 'success'); ctl.close(); show('templates'); }
+          });
+        });
+      }
+    });
+  }
+
   // ---------- Packages ----------
   function renderPackages(m) {
     sb.from('packages').select('*').eq('coach_id', coach ? coach.id : '0').order('price')
@@ -582,27 +648,41 @@
   }
 
   function createSessionModal(clientId) {
-    sb.from('clients').select('id,name,email').eq('coach_id', coach.id).then(function (res) {
-      var clients = res.data || [];
+    Promise.all([
+      sb.from('clients').select('id,name,email').eq('coach_id', coach.id),
+      sb.from('session_templates').select('id,name,structure').eq('coach_id', coach.id)
+    ]).then(function (res) {
+      var clients = res[0].data || [];
+      var tpls = res[1].data || [];
       if (!clients.length) { H.toast('Add a client first', 'info'); return; }
       var opts = clients.map(function (c) { return { value: c.id, label: c.name || c.email }; });
+      var tplOpts = [{ value: '', label: '— None —' }].concat(tpls.map(function (t) { return { value: t.id, label: t.name }; }));
       H.modal({
         title: 'Schedule Session',
         body: H.input({ id: 'gs-client', label: 'Client', type: 'select', options: opts, value: clientId || opts[0].value }) +
+          (tpls.length ? H.input({ id: 'gs-tpl', label: 'Template (optional)', type: 'select', options: tplOpts, value: '' }) : '') +
           H.input({ id: 'gs-when', label: 'Date & time', type: 'datetime-local' }) +
           H.input({ id: 'gs-dur', label: 'Duration (min)', type: 'number', value: '60' }) +
           H.input({ id: 'gs-mode', label: 'Mode', type: 'select', options: ['coaching', 'personal_dev', 'mixed'], value: 'coaching' }),
         actions: [{ label: 'Cancel', variant: 'ghost' }, { label: 'Schedule', variant: 'primary' }],
         onMount: function (ctl) {
           ctl.el.querySelector('.h-btn--ghost').addEventListener('click', ctl.close);
+          // Applying a template pre-fills the mode.
+          var tplSel = document.getElementById('gs-tpl');
+          if (tplSel) tplSel.addEventListener('change', function () {
+            var t = tpls.find(function (x) { return x.id === tplSel.value; });
+            if (t && t.structure && t.structure.mode) document.getElementById('gs-mode').value = t.structure.mode;
+          });
           ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
             var when = document.getElementById('gs-when').value;
             if (!when) { H.toast('Pick a date/time', 'error'); return; }
+            var tplId = tplSel ? tplSel.value : '';
             var row = {
               coach_id: coach.id, client_id: document.getElementById('gs-client').value,
               scheduled_at: new Date(when).toISOString(),
               duration_minutes: parseInt(document.getElementById('gs-dur').value, 10) || 60,
-              mode: document.getElementById('gs-mode').value, status: 'scheduled'
+              mode: document.getElementById('gs-mode').value, status: 'scheduled',
+              template_id: tplId || null
             };
             sb.from('sessions').insert(row).select('id').maybeSingle().then(function (res) {
               if (res.error) { H.toast('Failed: ' + res.error.message, 'error'); return; }
