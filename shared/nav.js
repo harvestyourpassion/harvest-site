@@ -35,7 +35,7 @@ function injectHarvestNav() {
 
     function lc(s) { return section === s ? '#4ade80' : '#d1d5db'; }
 
-    var navHTML = '<nav id="harvest-global-nav" style="border-bottom:1px solid #475569;background:#1e293b;position:sticky;top:0;z-index:9999;font-family:system-ui,-apple-system,sans-serif;">' +
+    var navHTML = '<nav id="harvest-global-nav" aria-label="Primary navigation" style="border-bottom:1px solid #475569;background:#1e293b;position:sticky;top:0;z-index:9999;font-family:system-ui,-apple-system,sans-serif;">' +
         '<div style="max-width:1280px;margin:0 auto;padding:0 1rem;display:flex;justify-content:space-between;align-items:center;height:52px;">' +
         '<a href="/" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;">' +
             '<img src="/assets/brand/logo.svg" alt="Harvest Your Passion" style="height:34px;width:auto;display:block;" onerror="this.onerror=null;this.src=\'/assets/brand/logo.png\';">' +
@@ -58,8 +58,23 @@ function injectHarvestNav() {
         '</div>' +
         '</div>' +
         '</nav>' +
+        // Mobile bottom nav (shown < 640px). 5 key destinations.
+        '<nav id="harvest-bottomnav" aria-label="Primary mobile navigation">' +
+            '<a href="/" aria-label="Home"><span>🏠</span><span>Home</span></a>' +
+            '<a href="/roots/" aria-label="Roots"><span>🌱</span><span>Roots</span></a>' +
+            '<a href="/coaching/" aria-label="Coaching"><span>🌿</span><span>Coaching</span></a>' +
+            '<a href="/blog/" aria-label="Blog"><span>📚</span><span>Blog</span></a>' +
+            '<a href="/contact/" aria-label="Contact"><span>✉️</span><span>Contact</span></a>' +
+        '</nav>' +
         '<style>' +
         '#harvest-global-nav a:hover{color:#4ade80!important}' +
+        '#harvest-bottomnav{display:none;}' +
+        '@media(max-width:640px){' +
+          '#harvest-bottomnav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:9998;background:#1e293b;border-top:1px solid #475569;justify-content:space-around;align-items:center;height:58px;}' +
+          '#harvest-bottomnav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex:1;min-height:44px;color:#94a3b8;text-decoration:none;font-size:0.62rem;}' +
+          '#harvest-bottomnav a span:first-child{font-size:1.15rem;}' +
+          'body{padding-bottom:62px;}' +
+        '}' +
         ':root{--harvest-nav-max-width:1280px;--harvest-nav-padding:1rem;}' +
         '.harvest-container{max-width:var(--harvest-nav-max-width);margin:0 auto;padding:0 var(--harvest-nav-padding);}' +
         '#harvest-profile-dropdown{display:none;position:absolute;top:100%;right:0;margin-top:0.5rem;background:#1e293b;border:1px solid #475569;border-radius:0.5rem;padding:0.75rem 1rem;min-width:220px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:10000;}' +
