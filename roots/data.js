@@ -8,10 +8,43 @@
 
 var sb = null;
 var currentUser = null;
-var ownerId = null;
+var ownerId = null;            // the signed-in user's id (the coach, when acting)
+var viewOwnerId = null;        // whose workspace we load/save (client, when acting)
+var actingAsClientId = null;   // set when a coach is "acting as" a client
+var actingAsName = "";
 var currentProfileId = null; // legacy ref guarded in app.js rename; kept null
 var _tabKeyToUuid = {};
 var _tabUuidToKey = {};
+
+// Act As Client (Addendum D): a coach can open a client's Roots via
+// /roots/?as=<client_user_id>&asname=<name>. RLS (items_coach_access) only
+// returns/accepts the client's items if this coach actually owns the client, so
+// the param can't be abused. All writes are stamped performed_by = the coach.
+function resolveViewOwner(){
+  var params = new URLSearchParams(window.location.search);
+  var asId = params.get("as");
+  if(asId){
+    actingAsClientId = asId;
+    actingAsName = params.get("asname") || "Client";
+    viewOwnerId = asId;
+    showActingBanner();
+  } else {
+    actingAsClientId = null; viewOwnerId = ownerId; hideActingBanner();
+  }
+}
+
+function showActingBanner(){
+  if(document.getElementById("actingBanner")) return;
+  var bar = document.createElement("div");
+  bar.id = "actingBanner";
+  bar.style.cssText = "position:sticky;top:0;z-index:10000;background:#f59e0b;color:#0f172a;font-weight:600;font-size:13px;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;font-family:system-ui,sans-serif";
+  bar.innerHTML = '<span>👁 Viewing as ' + (actingAsName || "Client") + ' — all changes are logged</span>' +
+    '<button onclick="window.location.href=\'/garden/\'" style="background:#0f172a;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit">Return to Garden</button>';
+  document.body.insertBefore(bar, document.body.firstChild);
+}
+function hideActingBanner(){
+  var b = document.getElementById("actingBanner"); if(b) b.parentNode.removeChild(b);
+}
 
 function _norm(name){ return String(name || "").toLowerCase().replace(/[^a-z0-9]/g, ""); }
 
@@ -33,7 +66,7 @@ function initSupabase(){
 
   sb.auth.onAuthStateChange(function(event, session){
     if(event === "SIGNED_IN" && session){
-      currentUser = session.user; ownerId = session.user.id; loadFromCloud();
+      currentUser = session.user; ownerId = session.user.id; resolveViewOwner(); loadFromCloud();
     } else if(event === "SIGNED_OUT"){
       currentUser = null; ownerId = null;
       state = {items:[], mainTabs:[], subTabs:[], sections:[], kpiWidgets:[], settings:{}};
@@ -43,7 +76,7 @@ function initSupabase(){
 
   sb.auth.getSession().then(function(result){
     var session = result.data.session;
-    if(session){ currentUser = session.user; ownerId = session.user.id; loadFromCloud(); }
+    if(session){ currentUser = session.user; ownerId = session.user.id; resolveViewOwner(); loadFromCloud(); }
     else { showLoginRequired(); }
   });
 }
@@ -55,7 +88,7 @@ function loadFromCloud(){
   // Structure (tabs/subtabs/sections/kpis) from the app's defaults.
   state = getDefaultData();
 
-  sb.from("tabs").select("*").eq("user_id", ownerId).order("order_index").then(function(tr){
+  sb.from("tabs").select("*").eq("user_id", viewOwnerId).order("order_index").then(function(tr){
     var tabs = (tr && tr.data) || [];
     _tabKeyToUuid = {}; _tabUuidToKey = {};
     var i, key;
@@ -73,7 +106,7 @@ function loadFromCloud(){
         state.mainTabs.push({id:key, name:tabs[i].name, icon:tabs[i].icon || "", color:tabs[i].color || "#3b82f6"});
       }
     }
-    return sb.from("items").select("*").eq("user_id", ownerId);
+    return sb.from("items").select("*").eq("user_id", viewOwnerId);
   }).then(function(ir){
     var rows = (ir && ir.data) || [];
     state.items = rows.map(_rowToItem);
@@ -144,7 +177,7 @@ function _syncNow(){
     }
     // Delete any cloud items no longer present in app state.
     var ids = state.items.map(function(it){ return it.id; });
-    var del = sb.from("items").delete().eq("user_id", ownerId);
+    var del = sb.from("items").delete().eq("user_id", viewOwnerId);
     if(ids.length){ del = del.not("id", "in", "(" + ids.join(",") + ")"); }
     del.then(function(res){ if(res.error) console.error("Item delete sync error:", res.error); });
   });
@@ -157,7 +190,8 @@ function _itemToRow(it, idx){
   f._order = idx;
   return {
     id: it.id,
-    user_id: ownerId,
+    user_id: viewOwnerId,
+    performed_by: actingAsClientId ? ownerId : null,
     tab_id: _tabKeyToUuid[it.tab] || null,
     section_id: null,
     title: it.title,
@@ -189,7 +223,7 @@ function _ensureTabsForKeys(){
     var id = _uuidv4();
     _tabKeyToUuid[k] = id; _tabUuidToKey[id] = k;
     return {
-      id: id, user_id: ownerId,
+      id: id, user_id: viewOwnerId,
       name: def ? def.name : k,
       icon: def ? def.icon : "",
       color: def ? def.color : "#3b82f6",

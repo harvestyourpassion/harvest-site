@@ -211,7 +211,8 @@
       html += '<div class="h-row" style="gap:8px;margin-bottom:16px">' +
         H.badge(c.status || 'active', c.status === 'active' ? 'active' : 'paused') +
         H.button({ label: 'Schedule Session', variant: 'secondary', id: 'g-c-session' }) +
-        H.button({ label: 'Add Note', variant: 'ghost', id: 'g-c-note' }) + '</div>';
+        H.button({ label: 'Add Note', variant: 'ghost', id: 'g-c-note' }) +
+        (c.user_id ? H.button({ label: '👁 View as Client', variant: 'secondary', id: 'g-c-actas' }) : '') + '</div>';
       if (c.current_focus) html += H.card({ body: '<strong>Current focus:</strong> ' + H.esc(c.current_focus) });
       if (c.goals && c.goals.length) {
         html += '<div class="g-section-title">Goals</div>' + H.card({ body: c.goals.map(function (g) { return H.badge(g, 'neutral'); }).join(' ') });
@@ -238,6 +239,10 @@
       document.getElementById('g-back').addEventListener('click', function () { show('clients'); });
       document.getElementById('g-c-session').addEventListener('click', function () { createSessionModal(c.id); });
       document.getElementById('g-c-note').addEventListener('click', function () { addNoteModal(c.id); });
+      var actAs = document.getElementById('g-c-actas');
+      if (actAs) actAs.addEventListener('click', function () {
+        w.location.href = '/roots/?as=' + encodeURIComponent(c.user_id) + '&asname=' + encodeURIComponent(c.name || 'Client');
+      });
     });
   }
 
