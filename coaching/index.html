@@ -40,9 +40,9 @@
 </head>
 <body class="bg-harvest-bg text-harvest-text min-h-screen">
     <!-- Coaching Sub-Navigation -->
-    <div class="bg-harvest-surface border-b border-harvest-border">
+    <div class="bg-harvest-surface border-b border-harvest-border" id="coaching-subnav" style="display:none">
         <div class="max-w-6xl mx-auto px-6 py-3">
-            <nav class="flex items-center gap-6 overflow-x-auto">
+            <nav class="flex items-center gap-6 overflow-x-auto" aria-label="Coaching client menu">
                 <a href="#" onclick="showPage('packages')" class="text-sm text-gray-400 hover:text-harvest-green font-medium transition-colors whitespace-nowrap" id="nav-packages">Packages</a>
                 <a href="#" onclick="showPage('schedule')" class="text-sm text-gray-400 hover:text-harvest-green font-medium transition-colors whitespace-nowrap" id="nav-schedule">Schedule</a>
                 <a href="#" onclick="showPage('sessions')" class="text-sm text-gray-400 hover:text-harvest-green font-medium transition-colors whitespace-nowrap" id="nav-sessions">My Sessions</a>
@@ -665,6 +665,25 @@
     <script>
     // Shim for legacy login() calls - uses shared signIn()
     function login() { if (window.signIn) window.signIn(); }
+
+    // #4: the client sub-nav (Schedule/My Sessions/Resources/Intake) is only for
+    // signed-in clients with an active package. Public visitors see packages only.
+    (function () {
+      function gateSubnav() {
+        var sb = window.getSb && window.getSb();
+        if (!sb || !window.getUser) { setTimeout(gateSubnav, 300); return; }
+        window.getUser().then(function (user) {
+          if (!user) return;
+          sb.from('clients').select('id,status,package_id').eq('user_id', user.id)
+            .in('status', ['active', 'paused']).then(function (res) {
+              var active = (res.data || []).some(function (c) { return c.package_id; });
+              if (active) { var el = document.getElementById('coaching-subnav'); if (el) el.style.display = ''; }
+            });
+        });
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', gateSubnav);
+      else gateSubnav();
+    })();
     </script>
 </body>
 </html>

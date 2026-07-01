@@ -58,21 +58,10 @@
       var answered = (res[2].data || []).map(function(x){ return x.survey_id; });
       var pendingSurveys = surveys.filter(function(s){ return answered.indexOf(s.id) === -1; });
 
-      var html = '<h1 class="ns-h1">Your next steps</h1><p class="ns-sub">A few things to get you set up with '+esc(client.name? '' : '')+'coaching.</p>';
+      var html = '<h1 class="ns-h1">Active Coaching To-Dos</h1><p class="ns-sub">Complete these to get set up with coaching.</p>';
 
-      // Contracts to sign
-      html += '<div class="ns-sec">Agreements</div>';
-      if(!contracts.length){ html += H.card({ body:'<span class="h-muted">Nothing to sign right now. ✅</span>' }); }
-      else contracts.forEach(function(c){
-        html += '<div class="h-card" data-contract="'+c.id+'">' +
-          '<div style="font-weight:600;margin-bottom:6px">Coaching Agreement</div>' +
-          '<p class="h-muted" style="font-size:13px">'+ (c.template_url ? '<a href="'+esc(c.template_url)+'" target="_blank" style="color:var(--accent-blue)">Read the agreement</a>' : 'By signing you agree to the coaching engagement terms.') +'</p>' +
-          H.input({ id:'sig-'+c.id, label:'Type your full name to sign', placeholder:'Your full name' }) +
-          H.button({ label:'Sign', class:'ns-sign', id:'signbtn-'+c.id }) + '</div>';
-      });
-
-      // Surveys to complete
-      html += '<div class="ns-sec">Intake &amp; check-ins</div>';
+      // Surveys FIRST — intake is the first action after purchase (#11).
+      html += '<div class="ns-sec">1 · Intake &amp; check-ins</div>';
       if(!pendingSurveys.length){ html += H.card({ body:'<span class="h-muted">No surveys to complete. ✅</span>' }); }
       else pendingSurveys.forEach(function(s){
         var qs = (s.survey_questions || []).sort(function(a,b){ return (a.order_index||0)-(b.order_index||0); });
@@ -88,8 +77,24 @@
         html += H.button({ label:'Submit', id:'submit-'+s.id }) + '</div>';
       });
 
+      // Contracts — full terms shown before signing (#10).
+      html += '<div class="ns-sec">2 · Agreements</div>';
+      if(!contracts.length){ html += H.card({ body:'<span class="h-muted">Nothing to sign right now. ✅</span>' }); }
+      else contracts.forEach(function(c){
+        html += '<div class="h-card" data-contract="'+c.id+'">' +
+          '<div style="font-weight:600;margin-bottom:6px">Coaching Agreement</div>' +
+          '<div style="max-height:200px;overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:13px;line-height:1.5;color:#cbd5e1;margin-bottom:10px">' +
+            (c.template_url
+              ? 'Please review the full agreement: <a href="'+esc(c.template_url)+'" target="_blank" style="color:var(--accent-blue)">open document</a>.<br><br>'
+              : '') +
+            'This Coaching Agreement is between you and Leandro Castillo-Monroy (Harvest Your Passion LLC). By signing, you agree to attend scheduled sessions, engage in good faith, and understand that coaching is not therapy, medical, or financial advice. Sessions are confidential. Payment is non-refundable once coaching has begun. Either party may end the engagement with written notice.' +
+          '</div>' +
+          H.input({ id:'sig-'+c.id, label:'Type your full name to sign', placeholder:'Your full name' }) +
+          H.button({ label:'Sign agreement', id:'signbtn-'+c.id }) + '</div>';
+      });
+
       // Schedule
-      html += '<div class="ns-sec">Your first session</div>';
+      html += '<div class="ns-sec">3 · Your first session</div>';
       html += H.card({ body:'<div class="h-row" style="justify-content:space-between"><span class="h-muted">Pick a time that works for you.</span>'+H.button({label:'Schedule',href:'/coaching/book.html?paid=1',variant:'secondary'})+'</div>' });
 
       document.getElementById('ns-root').innerHTML = html;
