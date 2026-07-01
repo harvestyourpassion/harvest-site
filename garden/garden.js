@@ -236,7 +236,8 @@
         H.button({ label: 'Schedule Session', variant: 'secondary', id: 'g-c-session' }) +
         H.button({ label: 'Add Note', variant: 'ghost', id: 'g-c-note' }) +
         (c.user_id ? H.button({ label: '👁 View as Client', variant: 'secondary', id: 'g-c-actas' }) : '') +
-        (c.status === 'prospect' ? H.button({ label: 'Convert to Client', id: 'g-c-convert' }) : '') + '</div>';
+        (c.status === 'prospect' ? H.button({ label: 'Convert to Client', id: 'g-c-convert' }) : '') +
+        H.button({ label: 'Manage Package', variant: 'secondary', id: 'g-c-pkg' }) + '</div>';
       if (c.current_focus) html += H.card({ body: '<strong>Current focus:</strong> ' + H.esc(c.current_focus) });
       if (c.goals && c.goals.length) {
         html += '<div class="g-section-title">Goals</div>' + H.card({ body: c.goals.map(function (g) { return H.badge(g, 'neutral'); }).join(' ') });
@@ -267,6 +268,7 @@
       if (actAs) actAs.addEventListener('click', function () {
         w.location.href = '/roots/?as=' + encodeURIComponent(c.user_id) + '&asname=' + encodeURIComponent(c.name || 'Client');
       });
+      document.getElementById('g-c-pkg').addEventListener('click', function () { managePackageModal(c); });
       var conv = document.getElementById('g-c-convert');
       if (conv) conv.addEventListener('click', function () {
         sb.from('clients').update({ status: 'active' }).eq('id', c.id).then(function (r) {
@@ -285,6 +287,7 @@
       .then(function (res) {
         var sessions = res.data || [];
         var html = head('Sessions', sessions.length + ' total');
+        html += '<div style="margin-bottom:16px">' + H.button({ label: '+ Schedule Session', id: 'g-sess-new' }) + '</div>';
         if (!sessions.length) {
           html += H.card({ body: H.empty({ icon: '📅', title: 'No sessions yet', description: 'Booked and scheduled sessions will show here.' }) });
         } else {
@@ -299,10 +302,53 @@
           html += '</div>';
         }
         m.innerHTML = html;
+        var snew = document.getElementById('g-sess-new');
+        if (snew) snew.addEventListener('click', function () { createSessionModal(); });
         m.querySelectorAll('[data-session-id]').forEach(function (el) {
           el.addEventListener('click', function () { show('session', el.getAttribute('data-session-id')); });
         });
       });
+  }
+
+  // Manually assign a package + edit session progress (#19/#20/#21).
+  function managePackageModal(c) {
+    sb.from('packages').select('id,name,session_count').eq('coach_id', coach.id).then(function (res) {
+      var pkgs = res.data || [];
+      var opts = [{ value: '', label: '— None —' }].concat(pkgs.map(function (p) { return { value: p.id, label: p.name }; }));
+      H.modal({
+        title: 'Manage Package — ' + (c.name || c.email || 'Client'),
+        body: H.input({ id: 'mp-pkg', label: 'Package', type: 'select', options: opts, value: c.package_id || '' }) +
+          H.input({ id: 'mp-total', label: 'Total sessions (blank = package default)', type: 'number', value: c.sessions_total != null ? c.sessions_total : '' }) +
+          H.input({ id: 'mp-used', label: 'Sessions used', type: 'number', value: c.sessions_used || 0 }) +
+          H.input({ id: 'mp-expires', label: 'Expires (optional)', type: 'date', value: c.package_expires_at ? String(c.package_expires_at).slice(0, 10) : '' }) +
+          '<p class="h-muted" style="font-size:12px">Use this for manual grants (e.g. finishing an old package) or to adjust/extend a client\'s remaining sessions.</p>',
+        actions: [{ label: 'Cancel', variant: 'ghost' }, { label: 'Save', variant: 'primary' }],
+        onMount: function (ctl) {
+          ctl.el.querySelector('.h-btn--ghost').addEventListener('click', ctl.close);
+          // Default total from the picked package.
+          var pkgSel = document.getElementById('mp-pkg');
+          pkgSel.addEventListener('change', function () {
+            var p = pkgs.find(function (x) { return x.id === pkgSel.value; });
+            if (p && p.session_count != null && !document.getElementById('mp-total').value) document.getElementById('mp-total').value = p.session_count;
+          });
+          ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
+            var num = function (id) { var v = document.getElementById(id).value; return v === '' ? null : Number(v); };
+            var exp = document.getElementById('mp-expires').value;
+            var row = {
+              package_id: pkgSel.value || null,
+              sessions_total: num('mp-total'),
+              sessions_used: num('mp-used') || 0,
+              package_expires_at: exp ? new Date(exp).toISOString() : null,
+              status: (pkgSel.value && c.status === 'prospect') ? 'active' : c.status
+            };
+            sb.from('clients').update(row).eq('id', c.id).then(function (r) {
+              if (r.error) H.toast('Failed: ' + r.error.message, 'error');
+              else { H.toast('Package updated', 'success'); ctl.close(); show('client', c.id); }
+            });
+          });
+        }
+      });
+    });
   }
 
   // ---------- Session detail (prep/live/post + outcome) ----------
@@ -557,26 +603,70 @@
       .then(function (res) {
         var pkgs = res.data || [];
         var html = head('Packages', 'Your coaching offers');
+        html += '<div style="margin-bottom:16px">' + H.button({ label: '+ New Package', id: 'g-pkg-new' }) + '</div>';
         if (!pkgs.length) {
           html += H.card({ body: H.empty({ icon: '📦', title: 'No packages', description: 'Add coaching packages to sell.' }) });
         } else {
           html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">';
           pkgs.forEach(function (p) {
-            html += H.card({ body:
-              '<div style="font-weight:700;font-size:16px">' + H.esc(p.name) + '</div>' +
+            html += '<div class="h-card" data-pkg="' + H.esc(p.id) + '" style="cursor:pointer">' +
+              '<div style="font-weight:700;font-size:16px">' + H.esc(p.name) + (p.is_active === false ? ' ' + H.badge('inactive', 'done') : '') + '</div>' +
               '<div style="color:var(--accent-green);font-weight:700;font-size:20px;margin:4px 0">' + fmtMoney(p.price) + '</div>' +
-              '<div class="h-muted" style="font-size:13px;margin-bottom:8px">' + H.esc(p.description || '') + '</div>' +
+              '<div class="h-muted" style="font-size:13px;margin-bottom:8px">' + H.esc((p.description || '').slice(0, 90)) + '</div>' +
               '<div class="h-row" style="gap:6px;flex-wrap:wrap">' +
               H.badge(p.hours + ' hrs', 'neutral') +
               (p.session_count ? H.badge(p.session_count + (p.session_count == 1 ? ' session' : ' sessions'), 'neutral') : '') +
-              (p.message_limit === null ? H.badge('Unlimited msgs', 'active') : H.badge(p.message_limit + ' msgs', 'neutral')) +
-              '</div>'
-            });
+              (p.message_limit == null ? H.badge('Unlimited msgs', 'active') : H.badge(p.message_limit + ' msgs', 'neutral')) +
+              '</div></div>';
           });
           html += '</div>';
         }
         m.innerHTML = html;
+        document.getElementById('g-pkg-new').addEventListener('click', function () { packageModal(null); });
+        m.querySelectorAll('[data-pkg]').forEach(function (el) {
+          var p = pkgs.find(function (x) { return x.id === el.getAttribute('data-pkg'); });
+          el.addEventListener('click', function () { packageModal(p); });
+        });
       });
+  }
+
+  function packageModal(p) {
+    p = p || {};
+    H.modal({
+      title: p.id ? 'Edit Package' : 'New Package',
+      body: H.input({ id: 'pk-name', label: 'Name', value: p.name || '' }) +
+        H.input({ id: 'pk-price', label: 'Price (USD)', type: 'number', value: p.price != null ? p.price : '' }) +
+        H.input({ id: 'pk-desc', label: 'Description', type: 'textarea', value: p.description || '' }) +
+        H.input({ id: 'pk-hours', label: 'Hours', type: 'number', value: p.hours != null ? p.hours : '' }) +
+        H.input({ id: 'pk-sessions', label: 'Session count', type: 'number', value: p.session_count != null ? p.session_count : '' }) +
+        H.input({ id: 'pk-weeks', label: 'Duration (weeks)', type: 'number', value: p.duration_weeks != null ? p.duration_weeks : '' }) +
+        H.input({ id: 'pk-msg', label: 'Message limit (blank = unlimited)', type: 'number', value: p.message_limit != null ? p.message_limit : '' }) +
+        '<label class="h-row" style="gap:8px;margin:8px 0"><input type="checkbox" id="pk-active" ' + (p.is_active === false ? '' : 'checked') + '> Active (sellable)</label>',
+      actions: (p.id ? [{ label: 'Delete', variant: 'destructive' }] : []).concat([{ label: 'Save', variant: 'primary' }]),
+      onMount: function (ctl) {
+        if (p.id) ctl.el.querySelector('.h-btn--destructive').addEventListener('click', function () {
+          sb.from('packages').delete().eq('id', p.id).then(function (r) {
+            if (r.error) H.toast('Delete failed (in use?): ' + r.error.message, 'error');
+            else { H.toast('Deleted', 'info'); ctl.close(); show('packages'); }
+          });
+        });
+        ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
+          var num = function (id) { var v = document.getElementById(id).value; return v === '' ? null : Number(v); };
+          var name = document.getElementById('pk-name').value.trim();
+          if (!name) { H.toast('Name required', 'error'); return; }
+          var row = {
+            coach_id: coach.id, name: name, description: document.getElementById('pk-desc').value,
+            price: num('pk-price') || 0, hours: num('pk-hours'), session_count: num('pk-sessions'),
+            duration_weeks: num('pk-weeks'), message_limit: num('pk-msg'), is_active: document.getElementById('pk-active').checked
+          };
+          var op = p.id ? sb.from('packages').update(row).eq('id', p.id) : sb.from('packages').insert(row);
+          op.then(function (r) {
+            if (r.error) H.toast('Failed: ' + r.error.message, 'error');
+            else { H.toast('Saved', 'success'); ctl.close(); show('packages'); }
+          });
+        });
+      }
+    });
   }
 
   // ---------- Resources ----------
@@ -584,23 +674,63 @@
     sb.from('resources').select('*').eq('coach_id', coach ? coach.id : '0').order('created_at', { ascending: false })
       .then(function (res) {
         var rs = res.data || [];
-        var html = head('Resources', rs.length + ' items');
+        var html = head('Resources', 'Anything you share with clients — articles, books, worksheets, links, frameworks');
+        html += '<div style="margin-bottom:16px">' + H.button({ label: '+ New Resource', id: 'g-res-new' }) + '</div>';
         if (!rs.length) {
-          html += H.card({ body: H.empty({ icon: '📚', title: 'No resources yet', description: 'Frameworks, books, articles, and exercises you can assign to clients will live here.' }) });
+          html += H.card({ body: H.empty({ icon: '📚', title: 'No resources yet', description: 'Add frameworks, books, articles, worksheets, or links to assign to clients.' }) });
         } else {
           html += '<div style="display:flex;flex-direction:column;gap:10px">';
           rs.forEach(function (r) {
             html += H.card({ body: '<div class="h-row" style="justify-content:space-between">' +
-              '<span><span style="font-weight:600">' + H.esc(r.title) + '</span> ' + (r.type ? H.badge(r.type, 'neutral') : '') + '</span>' +
+              '<span data-edit-res="' + H.esc(r.id) + '" style="cursor:pointer;flex:1"><span style="font-weight:600">' + H.esc(r.title) + '</span> ' + (r.type ? H.badge(r.type, 'neutral') : '') + '</span>' +
               '<button class="h-btn h-btn--secondary" data-share="' + H.esc(r.id) + '" style="min-height:32px;padding:0 12px">Share</button></div>' });
           });
           html += '</div>';
         }
         m.innerHTML = html;
+        document.getElementById('g-res-new').addEventListener('click', function () { resourceModal(null); });
         m.querySelectorAll('[data-share]').forEach(function (b) {
           b.addEventListener('click', function () { assignResourceModal(b.getAttribute('data-share')); });
         });
+        m.querySelectorAll('[data-edit-res]').forEach(function (el) {
+          var r = rs.find(function (x) { return x.id === el.getAttribute('data-edit-res'); });
+          el.addEventListener('click', function () { resourceModal(r); });
+        });
       });
+  }
+
+  var RES_TYPES = ['article', 'book', 'framework', 'course', 'exercise'];
+  function resourceModal(r) {
+    r = r || {};
+    H.modal({
+      title: r.id ? 'Edit Resource' : 'New Resource',
+      body: H.input({ id: 'rs-title', label: 'Title', value: r.title || '' }) +
+        H.input({ id: 'rs-type', label: 'Type', type: 'select', options: RES_TYPES, value: r.type || 'article' }) +
+        H.input({ id: 'rs-category', label: 'Category (optional)', value: r.category || '' }) +
+        H.input({ id: 'rs-url', label: 'Link / URL (optional)', value: r.url || '' }) +
+        H.input({ id: 'rs-content', label: 'Notes / content (optional)', type: 'textarea', value: r.content || '' }) +
+        '<label class="h-row" style="gap:8px;margin:8px 0"><input type="checkbox" id="rs-public" ' + (r.is_public ? 'checked' : '') + '> Public (also show in the public library)</label>',
+      actions: (r.id ? [{ label: 'Delete', variant: 'destructive' }] : []).concat([{ label: 'Save', variant: 'primary' }]),
+      onMount: function (ctl) {
+        if (r.id) ctl.el.querySelector('.h-btn--destructive').addEventListener('click', function () {
+          sb.from('resources').delete().eq('id', r.id).then(function () { H.toast('Deleted', 'info'); ctl.close(); show('resources'); });
+        });
+        ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
+          var title = document.getElementById('rs-title').value.trim();
+          if (!title) { H.toast('Title required', 'error'); return; }
+          var row = {
+            coach_id: coach.id, title: title, type: document.getElementById('rs-type').value,
+            category: document.getElementById('rs-category').value.trim() || null, url: document.getElementById('rs-url').value.trim() || null,
+            content: document.getElementById('rs-content').value, is_public: document.getElementById('rs-public').checked
+          };
+          var op = r.id ? sb.from('resources').update(row).eq('id', r.id) : sb.from('resources').insert(row);
+          op.then(function (res2) {
+            if (res2.error) H.toast('Failed: ' + res2.error.message, 'error');
+            else { H.toast('Saved', 'success'); ctl.close(); show('resources'); }
+          });
+        });
+      }
+    });
   }
 
   // Assign From Anywhere: share a resource with a client (shared_items row).
@@ -636,11 +766,13 @@
   // ---------- Billing ----------
   function renderBilling(m) {
     Promise.all([
-      sb.from('payments').select('*').order('paid_at', { ascending: false }).limit(50),
-      sb.from('invoices').select('*').order('due_date', { ascending: false }).limit(50)
+      sb.from('payments').select('*, packages(name), clients(name,email)').order('paid_at', { ascending: false }).limit(100),
+      sb.from('invoices').select('*').order('due_date', { ascending: false }).limit(50),
+      sb.from('clients').select('name,email,status,package_id,sessions_total,sessions_used,packages(name,session_count)').eq('coach_id', coach ? coach.id : '0')
     ]).then(function (res) {
       var payments = res[0].data || [];
       var invoices = res[1].data || [];
+      var clientsList = res[2].data || [];
       var revenue = payments.filter(function (p) { return p.status === 'succeeded' || p.status === 'paid'; })
         .reduce(function (s, p) { return s + Number(p.amount || 0); }, 0);
       var outstanding = invoices.filter(function (i) { return i.status !== 'paid'; })
@@ -650,6 +782,36 @@
         H.kpiCard({ value: fmtMoney(revenue), label: 'Revenue' }) +
         H.kpiCard({ value: fmtMoney(outstanding), label: 'Outstanding' }) +
         H.kpiCard({ value: payments.length, label: 'Payments' }) + '</div>';
+      // Client purchases / package progress table (#22).
+      html += '<div class="g-section-title">Client Purchases</div>';
+      var withPkg = clientsList.filter(function (c) { return c.package_id; });
+      if (!withPkg.length) html += H.card({ body: '<span class="h-muted">No package purchases yet.</span>' });
+      else {
+        html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
+          '<tr style="text-align:left;color:var(--text-secondary)"><th style="padding:6px">Client</th><th style="padding:6px">Package</th><th style="padding:6px">Sessions</th><th style="padding:6px">Status</th></tr>';
+        withPkg.forEach(function (c) {
+          var total = c.sessions_total != null ? c.sessions_total : (c.packages && c.packages.session_count);
+          var used = c.sessions_used || 0;
+          var remain = total != null ? (total - used) : '—';
+          html += '<tr style="border-top:1px solid var(--border)">' +
+            '<td style="padding:6px">' + H.esc(c.name || c.email || '—') + '</td>' +
+            '<td style="padding:6px">' + H.esc((c.packages && c.packages.name) || '—') + '</td>' +
+            '<td style="padding:6px">' + used + ' used' + (total != null ? ' / ' + remain + ' left' : '') + '</td>' +
+            '<td style="padding:6px">' + H.badge(c.status || 'active', c.status === 'active' ? 'active' : 'done') + '</td></tr>';
+        });
+        html += '</table></div>';
+      }
+      // Payments log
+      html += '<div class="g-section-title">Payments</div>';
+      if (!payments.length) html += H.card({ body: '<span class="h-muted">No payments yet.</span>' });
+      else {
+        html += '<div style="display:flex;flex-direction:column;gap:6px">';
+        payments.forEach(function (p) {
+          var who = (p.clients && (p.clients.name || p.clients.email)) || '—';
+          html += H.card({ body: '<div class="h-row" style="justify-content:space-between"><span>' + fmtMoney(p.amount) + ' — ' + H.esc(who) + (p.packages ? ' · ' + H.esc(p.packages.name) : '') + (p.is_test ? ' ' + H.badge('test', 'paused') : '') + '</span><span class="h-muted" style="font-size:12px">' + fmtDate(p.paid_at) + '</span></div>' });
+        });
+        html += '</div>';
+      }
       html += '<div class="g-section-title">Invoices</div>';
       if (!invoices.length) html += H.card({ body: H.empty({ icon: '🧾', title: 'No invoices yet', description: 'Invoices appear after you bill a client or a package is purchased.' }) });
       else {
