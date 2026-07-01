@@ -23,6 +23,8 @@ function injectHarvestNav() {
     else if (path.indexOf('/blog') === 0) section = 'blog';
     else if (path.indexOf('/store') === 0) section = 'store';
     else if (path.indexOf('/about') === 0) section = 'about';
+    else if (path.indexOf('/principles') === 0) section = 'principles';
+    else if (path.indexOf('/learn') === 0) section = 'learn';
     else if (path.indexOf('/contact') === 0) section = 'contact';
     else if (path === '/') section = 'home';
 
@@ -45,6 +47,8 @@ function injectHarvestNav() {
             '<a href="/coaching/" style="text-decoration:none;color:' + lc('coaching') + ';">Coaching</a>' +
             '<a href="/roots/" style="text-decoration:none;color:' + lc('roots') + ';">Roots</a>' +
             '<a href="/blog/" style="text-decoration:none;color:' + lc('blog') + ';">Blog</a>' +
+            '<a href="/principles/" style="text-decoration:none;color:' + lc('principles') + ';">Principles</a>' +
+            '<a href="/learn/" style="text-decoration:none;color:' + lc('learn') + ';">Learn</a>' +
             '<a href="/store/" style="text-decoration:none;color:' + lc('store') + ';">Store</a>' +
             '<a href="/about/" style="text-decoration:none;color:' + lc('about') + ';">About</a>' +
             '<a href="/contact/" style="text-decoration:none;color:' + lc('contact') + ';">Contact</a>' +

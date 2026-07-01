@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Learning Paths — Harvest Your Passion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/nav.js"></script>
+<script src="/shared/devpanel.js"></script>
+<script src="/shared/pwa.js"></script>
+<link rel="stylesheet" href="/shared/h-components.css">
+<script src="/shared/h-components.js"></script>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<style>
+  body { margin:0; background:var(--bg); color:var(--text-primary); font-family:Inter,system-ui,sans-serif; }
+  .l-wrap { max-width:820px; margin:0 auto; padding:32px 20px; }
+  .l-h1 { font-size:var(--text-3xl); font-weight:700; margin:0 0 4px; }
+  .l-sub { color:var(--text-secondary); margin:0 0 20px; }
+  .l-path { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px; margin-bottom:14px; }
+  .l-path h3 { margin:0 0 6px; }
+  .l-step { padding:6px 0; border-top:1px solid var(--border); font-size:14px; }
+</style>
+</head>
+<body>
+<div class="l-wrap h-scope" id="l-root"></div>
+<script>
+  var PATHS = [
+    { name:'Starting a Business', tag:'Business', desc:'From idea to first customer — the timeless fundamentals.' },
+    { name:'Personal Organization', tag:'Productivity', desc:'Build a system that works for you, not against you.' },
+    { name:'Leadership Foundations', tag:'Leadership', desc:'Develop presence, voice, and the ability to develop others.' },
+    { name:'Faith & Work', tag:'Faith', desc:'Integrating conviction and calling into how you build.' }
+  ];
+  function init(){
+    var sb = window.getSb(), root = document.getElementById('l-root');
+    root.innerHTML = H.loading({ skeleton:true, count:3 });
+    sb.from('content_items').select('title,id,tags,related_principles').eq('is_public', true).then(function(res){
+      var items = res.data || [];
+      var html = '<h1 class="l-h1">Learning Paths</h1><p class="l-sub">Grouped journeys through the ideas — start where you are.</p>';
+      PATHS.forEach(function(p){
+        var steps = items.filter(function(i){ return (i.tags||[]).indexOf(p.tag)!==-1 || (i.related_principles||[]).indexOf(p.tag)!==-1; });
+        html += '<div class="l-path"><h3>'+H.esc(p.name)+'</h3><div class="h-muted" style="font-size:13px;margin-bottom:8px">'+H.esc(p.desc)+'</div>';
+        if (!steps.length) html += '<div class="l-step h-muted">Articles coming soon.</div>';
+        else steps.forEach(function(s,idx){ html += '<div class="l-step" style="cursor:pointer" onclick="location.href=\'/blog/?id='+s.id+'\'">'+(idx+1)+'. '+H.esc(s.title)+'</div>'; });
+        html += '</div>';
+      });
+      html += '<div style="margin-top:18px">'+H.button({ label:'Try Roots free', href:'/roots/' })+'</div>';
+      root.innerHTML = html;
+    });
+  }
+  if (window.getSb && window.getSb()) init();
+  else document.addEventListener('DOMContentLoaded', function(){ setTimeout(init,150); });
+</script>
+</body>
+</html>

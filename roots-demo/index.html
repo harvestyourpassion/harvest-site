@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roots Demo — Harvest Your Passion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/nav.js"></script>
+<script src="/shared/devpanel.js"></script>
+<script src="/shared/pwa.js"></script>
+<link rel="stylesheet" href="/shared/h-components.css">
+<script src="/shared/h-components.js"></script>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<style>
+  body { margin:0; background:var(--bg); color:var(--text-primary); font-family:Inter,system-ui,sans-serif; }
+  .d-wrap { max-width:760px; margin:0 auto; padding:24px 16px 90px; }
+  .d-banner { background:rgba(34,197,94,.12); border:1px solid var(--accent-green); border-radius:var(--radius-md); padding:10px 14px; font-size:14px; margin-bottom:16px; }
+  .d-h1 { font-size:var(--text-2xl); font-weight:700; margin:0 0 12px; }
+</style>
+</head>
+<body>
+<div class="d-wrap h-scope" id="d-root"></div>
+<script>
+  var TABS = [
+    { id:'life', label:'Life', active:true }, { id:'business', label:'Business' }, { id:'goals', label:'Goals' }
+  ];
+  var ITEMS = [
+    { type:'Task', title:'Call the CPA', status:'Overdue', overdue:true, expand:'<div class="h-muted">Quarterly taxes — bring last year’s return.</div>' },
+    { type:'Habit', title:'Morning routine', status:'Active', expand:'<div class="h-muted">3-day streak. Prayer · movement · plan the day.</div>' },
+    { type:'Goal', title:'Launch the website', status:'In Progress', pinned:true,
+      expand:'<div class="h-muted">Sub-items:</div><label class="h-row" style="gap:8px"><input type="checkbox" checked disabled> Set up auth</label><label class="h-row" style="gap:8px"><input type="checkbox" checked disabled> Design tokens</label><label class="h-row" style="gap:8px"><input type="checkbox" disabled> Deploy to Netlify</label>' },
+    { type:'Bill', title:'Internet — $79', status:'Active', expand:'<div class="h-muted">Due the 15th. Autopay on.</div>' }
+  ];
+  function render(){
+    var root = document.getElementById('d-root');
+    var html = '<div class="d-banner">👋 This is a live demo — explore freely, nothing is saved. <a href="/roots/" style="color:var(--accent-green);font-weight:600">Try Roots free →</a></div>';
+    html += '<div class="d-h1">🌱 Roots — Sample Workspace</div>';
+    html += H.tabBar({ tabs: TABS });
+    html += '<div class="g-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0">' +
+      H.kpiCard({ value:'12', label:'Tasks', trend:8 }) +
+      H.kpiCard({ value:'4', label:'Goals' }) +
+      H.kpiCard({ value:'$2.0K', label:'Bills', trend:-3 }) + '</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:10px">';
+    ITEMS.forEach(function(it){
+      html += H.expandableCard({
+        header:'<strong>'+H.esc(it.title)+'</strong>',
+        meta: H.typeBadge(it.type) + ' ' + H.badge(it.status, it.status==='Overdue'?'overdue':(it.status==='Active'?'active':'neutral')),
+        expand: it.expand, overdue: it.overdue, pinned: it.pinned
+      });
+    });
+    html += '</div>';
+    root.innerHTML = html;
+  }
+  render();
+  document.body.insertAdjacentHTML('beforeend', H.fab({ ariaLabel:'Add', onclick:"H.toast('Sign up to add your own items','info')" }));
+</script>
+</body>
+</html>

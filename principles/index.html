@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Principle Library — Harvest Your Passion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/nav.js"></script>
+<script src="/shared/devpanel.js"></script>
+<script src="/shared/pwa.js"></script>
+<link rel="stylesheet" href="/shared/h-components.css">
+<script src="/shared/h-components.js"></script>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<style>
+  body { margin:0; background:var(--bg); color:var(--text-primary); font-family:Inter,system-ui,sans-serif; }
+  .p-wrap { max-width:820px; margin:0 auto; padding:32px 20px; }
+  .p-h1 { font-size:var(--text-3xl); font-weight:700; margin:0 0 4px; }
+  .p-sub { color:var(--text-secondary); margin:0 0 20px; }
+  .p-cats { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+  .p-item { padding:14px 0; border-bottom:1px solid var(--border); cursor:pointer; }
+  .p-item h3 { margin:0 0 4px; font-size:var(--text-lg); }
+  .p-item:hover h3 { color:var(--accent-green); }
+</style>
+</head>
+<body>
+<div class="p-wrap h-scope" id="p-root"></div>
+<script>
+  var CATS = ['Leadership','Business','Systems','AI','Faith','Relationships','Productivity'];
+  var activeCat = '';
+  function init(){
+    var sb = window.getSb(), root = document.getElementById('p-root');
+    root.innerHTML = H.loading({ skeleton:true, count:4 });
+    sb.from('content_items').select('*').eq('is_public', true).order('title').then(function(res){
+      var items = res.data || [];
+      window._principles = items;
+      renderList();
+    });
+    window.renderList = renderList;
+    function renderList(){
+      var items = window._principles || [];
+      var filtered = activeCat ? items.filter(function(i){
+        return (i.related_principles||[]).indexOf(activeCat)!==-1 || (i.tags||[]).indexOf(activeCat)!==-1;
+      }) : items;
+      var html = '<h1 class="p-h1">Principle Library</h1><p class="p-sub">Timeless principles, searchable by theme. Same source as the blog — a different lens.</p>';
+      html += '<div class="p-cats"><button class="h-tab '+(activeCat===''?'is-active':'')+'" onclick="setCat(\'\')">All</button>';
+      CATS.forEach(function(c){ html += '<button class="h-tab '+(activeCat===c?'is-active':'')+'" onclick="setCat(\''+c+'\')">'+c+'</button>'; });
+      html += '</div>';
+      if (!filtered.length) html += H.empty({ icon:'🧭', title:'No principles here yet', description:'Published articles tagged to this theme will appear here.' });
+      else filtered.forEach(function(i){
+        html += '<div class="p-item" onclick="location.href=\'/blog/?id='+i.id+'\'"><h3>'+H.esc(i.title)+'</h3>'+
+          '<div class="h-muted" style="font-size:13px">'+H.esc((i.body||'').slice(0,140))+'</div></div>';
+      });
+      document.getElementById('p-root').innerHTML = html;
+    }
+  }
+  window.setCat = function(c){ activeCat = c; window.renderList(); };
+  if (window.getSb && window.getSb()) init();
+  else document.addEventListener('DOMContentLoaded', function(){ setTimeout(init,150); });
+</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Build in Public — Harvest Your Passion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/nav.js"></script>
+<script src="/shared/devpanel.js"></script>
+<script src="/shared/pwa.js"></script>
+<link rel="stylesheet" href="/shared/h-components.css">
+<script src="/shared/h-components.js"></script>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<style>
+  body { margin:0; background:var(--bg); color:var(--text-primary); font-family:Inter,system-ui,sans-serif; }
+  .ch-wrap { max-width:760px; margin:0 auto; padding:32px 20px; }
+  .ch-h1 { font-size:var(--text-3xl); font-weight:700; margin:0 0 4px; }
+  .ch-sub { color:var(--text-secondary); margin:0 0 24px; }
+  .ch-entry { display:flex; gap:14px; padding:14px 0; border-bottom:1px solid var(--border); }
+  .ch-date { color:var(--text-secondary); font-size:13px; min-width:90px; }
+  .ch-body h3 { margin:0 0 4px; font-size:var(--text-base); }
+  .ch-body p { margin:0; color:var(--text-secondary); font-size:14px; }
+</style>
+</head>
+<body>
+<div class="ch-wrap h-scope">
+  <h1 class="ch-h1">Build in Public</h1>
+  <p class="ch-sub">What we're building, in the open. The platform grows every week.</p>
+  <div id="ch-list"></div>
+  <div style="margin-top:24px" id="ch-cta"></div>
+</div>
+<script>
+  var LOG = [
+    { date:'Jun 2026', title:'Roots on the cloud', body:'Your personal operating system now syncs to your account — tabs, items, sub-items, and comments.' },
+    { date:'Jun 2026', title:'Garden coaching system', body:'Client management, sessions with prep/live/post notes, packages, billing, surveys, contracts, and insights.' },
+    { date:'Jun 2026', title:'Online booking', body:'Book a coaching package and pay securely — sessions and resources land in your account.' },
+    { date:'Jun 2026', title:'Content pipeline', body:'One idea → article → framework → many outputs. Publishing to blog, principle library, and learning paths.' },
+    { date:'Jun 2026', title:'Installable app (PWA)', body:'Add Harvest to your home screen and get a native-app feel on mobile.' }
+  ];
+  document.getElementById('ch-list').innerHTML = LOG.map(function(e){
+    return '<div class="ch-entry"><div class="ch-date">'+H.esc(e.date)+'</div>'+
+      '<div class="ch-body"><h3>'+H.esc(e.title)+'</h3><p>'+H.esc(e.body)+'</p></div></div>';
+  }).join('');
+  document.getElementById('ch-cta').innerHTML = H.button({ label:'Try Roots free', href:'/roots/' });
+</script>
+</body>
+</html>
