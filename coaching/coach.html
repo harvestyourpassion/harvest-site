@@ -12,6 +12,7 @@
 <script src="/shared/pwa.js"></script>
 <link rel="stylesheet" href="/shared/h-components.css">
 <script src="/shared/h-components.js"></script>
+<script src="/shared/push.js"></script>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0f172a">
 <style>
@@ -60,7 +61,8 @@
         html += '<div class="h-row" style="gap:8px;margin:14px 0;flex-wrap:wrap">' +
           H.button({ label:'Message coach', href:'/messages/' }) +
           H.button({ label:'Request a session', href:'/coaching/book.html?paid=1', variant:'secondary' }) +
-          H.button({ label:'Next steps', href:'/coaching/next-steps.html', variant:'ghost' }) + '</div>';
+          H.button({ label:'Next steps', href:'/coaching/next-steps.html', variant:'ghost' }) +
+          H.button({ label:'🔔 Enable notifications', variant:'ghost', id:'cc-push' }) + '</div>';
 
         html += '<div class="cc-sec">Upcoming sessions</div>';
         if(!sessions.length) html += H.card({ body:'<span class="h-muted">No sessions scheduled. Use “Request a session” above.</span>' });
@@ -78,6 +80,8 @@
             (sh.message?'<div class="h-muted" style="font-size:13px;margin-top:4px">'+H.esc(sh.message)+'</div>':'') });
         });
         document.getElementById('cc-root').innerHTML = html;
+        var pb = document.getElementById('cc-push');
+        if (pb) pb.addEventListener('click', function(){ if(window.enablePush) window.enablePush(); });
       });
     });
   }

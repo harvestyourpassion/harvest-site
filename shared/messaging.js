@@ -175,6 +175,8 @@
         user_id: uid, type: 'new_message', title: 'New message',
         body: body.slice(0, 120), channel: 'in_app', reference_id: conv.id
       }).then(function () {});
+      // Best-effort web push (no-op if push disabled / not subscribed).
+      sb.functions.invoke('send-push', { body: { user_id: uid, title: 'New message', body: body.slice(0, 120), url: '/messages/' } }).catch(function () {});
     });
   }
 
