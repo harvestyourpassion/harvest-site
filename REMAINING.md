@@ -10,12 +10,18 @@ _As of this build. ✅ = done · 🟡 = partial · ❌ = not built · 🔒 = nee
 - 🔒 **Reminder cron** — scheduled every 15 min; only actually sends once Twilio/email above are on.
 
 ## Recently completed ✅
-- ✅ **Messaging** (addendum A) — coach↔client threads, notifications, soft per-package limit
-- ✅ **Act As Client** (addendum D) — `/roots/?as=…`, performed_by audit, banner
-- ✅ **Discuss Next Session** (addendum B) — item flag + Garden aggregation + session-prep clear
-- ✅ **Session Templates** — CRUD + apply-on-schedule (template_id)
-- ✅ **Convert prospect→client** — button in client detail
-- ✅ **Assign From Anywhere** — Share resource → client (shared_items + notification)
+- ✅ **Messaging** (A) · **Act As Client** (D) · **Discuss Next Session** (B) · **Session Templates** · **Convert prospect→client** · **Assign From Anywhere**
+- ✅ **Client survey fill-out + contract e-signature** (`/coaching/next-steps.html`)
+- ✅ **Session Plans** (per-client topic tracks)
+- ✅ **Coach Connection view** (`/coaching/coach.html` — shared resources, request session, message, upcoming)
+- ✅ **4-tier operating modes** (Simple/Guided/Builder + Custom reserved; builder-only gating)
+- ✅ **Content platform-version generator + knowledge relationships**
+- ✅ **70 Wix posts migrated** (published) + 3 local drafts
+- ✅ **Admin nav/feature-flag UI** (Garden Settings) — nav toggles, store hidden, principles/learn toggleable
+- ✅ **PWA push** (subscriptions + send-push fn; needs browser subscribe + flag flip)
+- ✅ **Mobile bottom-nav + nav a11y labels**
+- ✅ **Dev panel hidden in production**; **session/hour/week pluralization**
+- ✅ **DNS cutover guide** (`DNS-SETUP.md`)
 
 ## Roots — remaining
 - ❌ **Coach Connection view** (client side): shared resources, request-a-session, items visible to coach
