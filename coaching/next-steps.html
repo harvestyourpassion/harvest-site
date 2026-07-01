@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Next Steps — Harvest Your Passion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/nav.js"></script>
+<script src="/shared/devpanel.js"></script>
+<script src="/shared/pwa.js"></script>
+<link rel="stylesheet" href="/shared/h-components.css">
+<script src="/shared/h-components.js"></script>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<style>
+  body { margin:0; background:var(--bg); color:var(--text-primary); font-family:Inter,system-ui,sans-serif; }
+  .ns-wrap { max-width:640px; margin:0 auto; padding:28px 18px; }
+  .ns-h1 { font-size:var(--text-2xl); font-weight:700; margin:0 0 4px; color:#f1f5f9; }
+  .ns-sub { color:#cbd5e1; margin:0 0 22px; }
+  .ns-sec { font-size:var(--text-lg); font-weight:700; margin:22px 0 10px; }
+  .ns-q { margin-bottom:14px; }
+  .ns-q label { display:block; font-size:14px; color:#e2e8f0; margin-bottom:6px; }
+</style>
+</head>
+<body>
+<div class="ns-wrap h-scope" id="ns-root"></div>
+<script>
+  function esc(s){ return H.esc(s); }
+  function init(){
+    var sb = window.getSb(), root = document.getElementById('ns-root');
+    root.innerHTML = H.loading({ skeleton:true, count:3 });
+    window.getUser().then(function(user){
+      if(!user){
+        root.innerHTML = '<div class="h-empty"><div class="h-empty__icon">🔒</div><div class="h-empty__title">Sign in to see your next steps</div><div style="margin-top:16px">'+H.button({label:'Sign in',id:'ns-si'})+'</div></div>';
+        var b=document.getElementById('ns-si'); if(b) b.addEventListener('click',function(){ window.signIn(window.location.href); });
+        return;
+      }
+      sb.from('clients').select('id,coach_id,name').eq('user_id', user.id).then(function(r){
+        var clients = r.data || [];
+        if(!clients.length){ root.innerHTML = '<h1 class="ns-h1">Welcome</h1><p class="ns-sub">No coaching relationship is linked to this account yet.</p>'+H.button({label:'Explore coaching',href:'/coaching/book.html'}); return; }
+        render(clients);
+      });
+    });
+  }
+
+  function render(clients){
+    var sb = window.getSb();
+    var client = clients[0];
+    Promise.all([
+      sb.from('contracts').select('*').eq('client_id', client.id).eq('status','pending'),
+      sb.from('surveys').select('*, survey_questions(*)').eq('coach_id', client.coach_id),
+      sb.from('survey_responses').select('survey_id').eq('client_id', client.id)
+    ]).then(function(res){
+      var contracts = res[0].data || [];
+      var surveys = res[1].data || [];
+      var answered = (res[2].data || []).map(function(x){ return x.survey_id; });
+      var pendingSurveys = surveys.filter(function(s){ return answered.indexOf(s.id) === -1; });
+
+      var html = '<h1 class="ns-h1">Your next steps</h1><p class="ns-sub">A few things to get you set up with '+esc(client.name? '' : '')+'coaching.</p>';
+
+      // Contracts to sign
+      html += '<div class="ns-sec">Agreements</div>';
+      if(!contracts.length){ html += H.card({ body:'<span class="h-muted">Nothing to sign right now. ✅</span>' }); }
+      else contracts.forEach(function(c){
+        html += '<div class="h-card" data-contract="'+c.id+'">' +
+          '<div style="font-weight:600;margin-bottom:6px">Coaching Agreement</div>' +
+          '<p class="h-muted" style="font-size:13px">'+ (c.template_url ? '<a href="'+esc(c.template_url)+'" target="_blank" style="color:var(--accent-blue)">Read the agreement</a>' : 'By signing you agree to the coaching engagement terms.') +'</p>' +
+          H.input({ id:'sig-'+c.id, label:'Type your full name to sign', placeholder:'Your full name' }) +
+          H.button({ label:'Sign', class:'ns-sign', id:'signbtn-'+c.id }) + '</div>';
+      });
+
+      // Surveys to complete
+      html += '<div class="ns-sec">Intake &amp; check-ins</div>';
+      if(!pendingSurveys.length){ html += H.card({ body:'<span class="h-muted">No surveys to complete. ✅</span>' }); }
+      else pendingSurveys.forEach(function(s){
+        var qs = (s.survey_questions || []).sort(function(a,b){ return (a.order_index||0)-(b.order_index||0); });
+        html += '<div class="h-card" data-survey="'+s.id+'"><div style="font-weight:600;margin-bottom:8px">'+esc(s.name)+'</div>';
+        if(s.description) html += '<p class="h-muted" style="font-size:13px">'+esc(s.description)+'</p>';
+        qs.forEach(function(q){
+          html += '<div class="ns-q"><label>'+esc(q.content)+(q.required?' *':'')+'</label>';
+          if(q.type==='scale') html += H.input({ id:'q-'+q.id, type:'select', options:['1','2','3','4','5'] });
+          else if(q.type==='long_text') html += H.input({ id:'q-'+q.id, type:'textarea' });
+          else html += H.input({ id:'q-'+q.id });
+          html += '</div>';
+        });
+        html += H.button({ label:'Submit', id:'submit-'+s.id }) + '</div>';
+      });
+
+      // Schedule
+      html += '<div class="ns-sec">Your first session</div>';
+      html += H.card({ body:'<div class="h-row" style="justify-content:space-between"><span class="h-muted">Pick a time that works for you.</span>'+H.button({label:'Schedule',href:'/coaching/book.html?paid=1',variant:'secondary'})+'</div>' });
+
+      document.getElementById('ns-root').innerHTML = html;
+      wire(client, contracts, pendingSurveys);
+    });
+  }
+
+  function wire(client, contracts, surveys){
+    var sb = window.getSb();
+    contracts.forEach(function(c){
+      var b = document.getElementById('signbtn-'+c.id);
+      if(!b) return;
+      b.addEventListener('click', function(){
+        var name = document.getElementById('sig-'+c.id).value.trim();
+        if(!name){ H.toast('Type your name to sign', 'error'); return; }
+        sb.from('contracts').update({ status:'signed', signed_at:new Date().toISOString(), signature_data:{ name:name, signed_at:new Date().toISOString() } }).eq('id', c.id).then(function(r){
+          if(r.error){ H.toast('Could not sign: '+r.error.message, 'error'); return; }
+          sb.from('client_activity').insert({ client_id:client.id, type:'action_finished', description:'Signed coaching agreement.' }).then(function(){});
+          H.toast('Signed — thank you!', 'success'); init();
+        });
+      });
+    });
+    surveys.forEach(function(s){
+      var b = document.getElementById('submit-'+s.id);
+      if(!b) return;
+      b.addEventListener('click', function(){
+        var answers = {}, missing = false;
+        (s.survey_questions||[]).forEach(function(q){
+          var el = document.getElementById('q-'+q.id);
+          var v = el ? el.value.trim() : '';
+          if(q.required && !v) missing = true;
+          answers[q.content] = v;
+        });
+        if(missing){ H.toast('Please answer the required questions', 'error'); return; }
+        sb.from('survey_responses').insert({ survey_id:s.id, client_id:client.id, answers:answers, submitted_at:new Date().toISOString() }).then(function(r){
+          if(r.error){ H.toast('Submit failed: '+r.error.message, 'error'); return; }
+          sb.from('client_activity').insert({ client_id:client.id, type:'survey_submitted', description:'Completed survey: '+s.name }).then(function(){});
+          H.toast('Submitted — thank you!', 'success'); init();
+        });
+      });
+    });
+  }
+
+  if (window.getSb && window.getSb()) init();
+  else document.addEventListener('DOMContentLoaded', function(){ setTimeout(init,150); });
+</script>
+</body>
+</html>
