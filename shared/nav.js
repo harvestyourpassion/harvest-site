@@ -44,14 +44,14 @@ function injectHarvestNav() {
         '</a>' +
         '<div style="display:flex;align-items:center;gap:1.25rem;font-size:0.8rem;">' +
             '<a href="/" style="text-decoration:none;color:' + lc('home') + ';">Home</a>' +
-            '<a href="/coaching/" style="text-decoration:none;color:' + lc('coaching') + ';">Coaching</a>' +
-            '<a href="/roots/" style="text-decoration:none;color:' + lc('roots') + ';">Roots</a>' +
-            '<a href="/blog/" style="text-decoration:none;color:' + lc('blog') + ';">Blog</a>' +
-            '<a href="/principles/" style="text-decoration:none;color:' + lc('principles') + ';">Principles</a>' +
-            '<a href="/learn/" style="text-decoration:none;color:' + lc('learn') + ';">Learn</a>' +
-            '<a href="/store/" style="text-decoration:none;color:' + lc('store') + ';">Store</a>' +
-            '<a href="/about/" style="text-decoration:none;color:' + lc('about') + ';">About</a>' +
-            '<a href="/contact/" style="text-decoration:none;color:' + lc('contact') + ';">Contact</a>' +
+            '<a id="hnav-coaching" href="/coaching/" style="text-decoration:none;color:' + lc('coaching') + ';">Coaching</a>' +
+            '<a id="hnav-roots" href="/roots/" style="text-decoration:none;color:' + lc('roots') + ';">Roots</a>' +
+            '<a id="hnav-blog" href="/blog/" style="text-decoration:none;color:' + lc('blog') + ';">Blog</a>' +
+            '<a id="hnav-principles" href="/principles/" style="text-decoration:none;color:' + lc('principles') + ';">Principles</a>' +
+            '<a id="hnav-learn" href="/learn/" style="text-decoration:none;color:' + lc('learn') + ';">Learn</a>' +
+            '<a id="hnav-store" href="/store/" style="text-decoration:none;color:' + lc('store') + ';">Store</a>' +
+            '<a id="hnav-about" href="/about/" style="text-decoration:none;color:' + lc('about') + ';">About</a>' +
+            '<a id="hnav-contact" href="/contact/" style="text-decoration:none;color:' + lc('contact') + ';">Contact</a>' +
             '<span id="harvest-nav-admin"></span>' +
             '<span id="harvest-nav-client"></span>' +
             '<span id="harvest-nav-auth" style="position:relative;"></span>' +
@@ -78,7 +78,21 @@ function injectHarvestNav() {
             document.body.insertBefore(wrapper.firstChild, document.body.children[0] || null);
         }
         updateNavAuth();
+        applyNavVisibility();
     }
+}
+
+// Hide nav items whose nav_<key> feature flag is disabled (admin-configurable).
+function applyNavVisibility() {
+    var client = window.getSb ? window.getSb() : null;
+    if (!client) { setTimeout(applyNavVisibility, 400); return; }
+    client.from('feature_flags').select('key,enabled').like('key', 'nav_%').then(function (res) {
+        (res.data || []).forEach(function (f) {
+            if (f.enabled) return;
+            var el = document.getElementById('hnav-' + f.key.replace('nav_', ''));
+            if (el) el.style.display = 'none';
+        });
+    });
 }
 
 // Global display name — single source of truth across all pages

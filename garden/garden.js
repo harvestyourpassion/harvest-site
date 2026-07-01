@@ -598,10 +598,49 @@
         html += '<div style="margin-top:16px">' + H.button({ label: 'Save Availability', id: 'g-save-avail' }) + '</div>';
         html += '<div class="g-section-title">Google Calendar</div>';
         html += '<div id="g-cal-block" class="h-card">' + H.loading({}) + '</div>';
+        html += '<div class="g-section-title">Site Navigation &amp; Features</div>';
+        html += '<div id="g-flags-block">' + H.loading({}) + '</div>';
         m.innerHTML = html;
         document.getElementById('g-save-avail').addEventListener('click', saveAvailability);
         renderCalendarBlock();
+        renderFeatureFlags();
       });
+  }
+
+  // Admin toggles for feature_flags (nav visibility, store, integrations…).
+  function renderFeatureFlags() {
+    var block = document.getElementById('g-flags-block');
+    if (!block) return;
+    sb.from('feature_flags').select('key,enabled,description').order('key').then(function (res) {
+      var flags = res.data || [];
+      var groups = { 'Navigation': [], 'Integrations': [], 'Features': [] };
+      flags.forEach(function (f) {
+        if (f.key.indexOf('nav_') === 0) groups.Navigation.push(f);
+        else if (/stripe|zoom|twilio|calendar|email/.test(f.key)) groups.Integrations.push(f);
+        else groups.Features.push(f);
+      });
+      var html = '';
+      Object.keys(groups).forEach(function (g) {
+        if (!groups[g].length) return;
+        html += '<div style="font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-secondary);margin:10px 0 6px">' + g + '</div>';
+        groups[g].forEach(function (f) {
+          var label = f.description || f.key;
+          html += '<label class="h-card h-row" style="justify-content:space-between;margin-bottom:6px;cursor:pointer">' +
+            '<span style="font-size:14px">' + H.esc(label) + '<div class="h-muted" style="font-size:11px">' + H.esc(f.key) + '</div></span>' +
+            '<input type="checkbox" class="g-flag" data-key="' + H.esc(f.key) + '" ' + (f.enabled ? 'checked' : '') + '></label>';
+        });
+      });
+      block.innerHTML = html;
+      block.querySelectorAll('.g-flag').forEach(function (cb) {
+        cb.addEventListener('change', function () {
+          var key = cb.getAttribute('data-key');
+          sb.from('feature_flags').update({ enabled: cb.checked, updated_at: new Date().toISOString() }).eq('key', key).then(function (r) {
+            if (r.error) { H.toast('Failed: ' + r.error.message, 'error'); cb.checked = !cb.checked; }
+            else H.toast(key + ' ' + (cb.checked ? 'enabled' : 'disabled'), 'success');
+          });
+        });
+      });
+    });
   }
 
   function renderCalendarBlock() {
