@@ -52,6 +52,10 @@
     if (view === 'sessions') return renderSessions(m);
     if (view === 'packages') return renderPackages(m);
     if (view === 'billing') return renderBilling(m);
+    if (view === 'surveys') return renderSurveys(m);
+    if (view === 'contracts') return renderContracts(m);
+    if (view === 'emails') return renderEmails(m);
+    if (view === 'insights') return renderInsights(m);
     if (view === 'resources') return renderResources(m);
     if (view === 'settings') return renderSettings(m);
   }
@@ -513,6 +517,280 @@
           });
         });
       }
+    });
+  }
+
+  // ---------- Surveys ----------
+  function renderSurveys(m) {
+    sb.from('surveys').select('*').eq('coach_id', coach ? coach.id : '0').order('created_at', { ascending: false })
+      .then(function (res) {
+        var surveys = res.data || [];
+        var html = head('Surveys', 'Intake, check-in, and end-of-package surveys');
+        html += '<div style="margin-bottom:16px">' + H.button({ label: '+ New Survey', id: 'g-new-survey' }) + '</div>';
+        if (!surveys.length) {
+          html += H.card({ body: H.empty({ icon: '📋', title: 'No surveys yet', description: 'Build an intake or check-in survey to send clients.' }) });
+        } else {
+          html += '<div style="display:flex;flex-direction:column;gap:10px">';
+          surveys.forEach(function (s) {
+            html += '<div class="h-card" data-survey="' + H.esc(s.id) + '" style="cursor:pointer">' +
+              '<div class="h-row" style="justify-content:space-between"><strong>' + H.esc(s.name) + '</strong>' +
+              H.badge(s.trigger_type || 'manual', 'neutral') + '</div>' +
+              (s.description ? '<div class="h-muted" style="font-size:13px;margin-top:4px">' + H.esc(s.description) + '</div>' : '') + '</div>';
+          });
+          html += '</div>';
+        }
+        m.innerHTML = html;
+        document.getElementById('g-new-survey').addEventListener('click', newSurveyModal);
+        m.querySelectorAll('[data-survey]').forEach(function (el) {
+          el.addEventListener('click', function () { surveyDetail(el.getAttribute('data-survey')); });
+        });
+      });
+  }
+
+  function newSurveyModal() {
+    H.modal({
+      title: 'New Survey',
+      body: H.input({ id: 'sv-name', label: 'Name', placeholder: 'Intake Survey' }) +
+        H.input({ id: 'sv-desc', label: 'Description', type: 'textarea' }) +
+        H.input({ id: 'sv-trigger', label: 'When to send', type: 'select', options: [
+          { value: 'manual', label: 'Manually' }, { value: 'on_signup', label: 'On signup' },
+          { value: 'pre_session', label: 'Before session' }, { value: 'end_of_package', label: 'End of package' }
+        ], value: 'manual' }),
+      actions: [{ label: 'Cancel', variant: 'ghost' }, { label: 'Create', variant: 'primary' }],
+      onMount: function (ctl) {
+        ctl.el.querySelector('.h-btn--ghost').addEventListener('click', ctl.close);
+        ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
+          var name = document.getElementById('sv-name').value.trim();
+          if (!name) { H.toast('Name required', 'error'); return; }
+          sb.from('surveys').insert({
+            coach_id: coach.id, name: name,
+            description: document.getElementById('sv-desc').value.trim(),
+            trigger_type: document.getElementById('sv-trigger').value
+          }).then(function (res) {
+            if (res.error) H.toast('Failed: ' + res.error.message, 'error');
+            else { H.toast('Survey created', 'success'); ctl.close(); show('surveys'); }
+          });
+        });
+      }
+    });
+  }
+
+  function surveyDetail(surveyId) {
+    Promise.all([
+      sb.from('surveys').select('*').eq('id', surveyId).maybeSingle(),
+      sb.from('survey_questions').select('*').eq('survey_id', surveyId).order('order_index'),
+      sb.from('survey_responses').select('*, clients(name,email)').eq('survey_id', surveyId).order('submitted_at', { ascending: false })
+    ]).then(function (res) {
+      var s = res[0].data, qs = res[1].data || [], resp = res[2].data || [];
+      var body = '<div class="g-section-title" style="margin-top:0">Questions (' + qs.length + ')</div>';
+      body += '<div style="display:flex;flex-direction:column;gap:6px">';
+      qs.forEach(function (q) { body += '<div class="h-card">' + H.esc(q.content) + ' ' + H.badge(q.type || 'text', 'neutral') + '</div>'; });
+      body += '</div>';
+      body += '<div style="margin:12px 0">' +
+        H.input({ id: 'sq-content', label: 'Add a question', placeholder: 'Question text' }) +
+        H.input({ id: 'sq-type', label: 'Type', type: 'select', options: ['short_text', 'long_text', 'scale', 'choice'], value: 'short_text' }) +
+        H.button({ label: 'Add Question', id: 'sq-add', variant: 'secondary' }) + '</div>';
+      body += '<div class="g-section-title">Responses (' + resp.length + ')</div>';
+      if (!resp.length) body += H.card({ body: H.empty({ icon: '📥', title: 'No responses yet' }) });
+      else {
+        resp.forEach(function (r) {
+          var who = (r.clients && (r.clients.name || r.clients.email)) || 'Client';
+          body += '<div class="h-card"><strong>' + H.esc(who) + '</strong><pre style="white-space:pre-wrap;font-family:inherit;font-size:13px;color:var(--text-secondary);margin:6px 0 0">' + H.esc(JSON.stringify(r.answers || {}, null, 2)) + '</pre></div>';
+        });
+      }
+      var modal = H.modal({ title: s ? s.name : 'Survey', body: body, actions: [{ label: 'Close', variant: 'ghost' }] });
+      modal.el.querySelector('.h-btn--ghost').addEventListener('click', modal.close);
+      modal.el.querySelector('#sq-add').addEventListener('click', function () {
+        var content = document.getElementById('sq-content').value.trim();
+        if (!content) return;
+        sb.from('survey_questions').insert({
+          survey_id: surveyId, content: content,
+          type: document.getElementById('sq-type').value, order_index: qs.length
+        }).then(function (r) {
+          if (r.error) H.toast('Failed: ' + r.error.message, 'error');
+          else { H.toast('Question added', 'success'); modal.close(); surveyDetail(surveyId); }
+        });
+      });
+    });
+  }
+
+  // ---------- Contracts ----------
+  function renderContracts(m) {
+    sb.from('contracts').select('*, clients(name,email)').eq('coach_id', coach ? coach.id : '0').order('created_at', { ascending: false })
+      .then(function (res) {
+        var contracts = res.data || [];
+        var html = head('Contracts', 'Agreements & signatures');
+        html += '<div style="margin-bottom:16px">' + H.button({ label: '+ New Contract', id: 'g-new-contract' }) + '</div>';
+        if (!contracts.length) {
+          html += H.card({ body: H.empty({ icon: '📝', title: 'No contracts yet', description: 'Send an agreement to a client for signature.' }) });
+        } else {
+          html += '<div style="display:flex;flex-direction:column;gap:10px">';
+          contracts.forEach(function (c) {
+            var who = (c.clients && (c.clients.name || c.clients.email)) || 'Client';
+            var kind = c.status === 'signed' ? 'done' : (c.status === 'expired' ? 'overdue' : 'paused');
+            html += '<div class="h-card" data-contract="' + H.esc(c.id) + '" style="cursor:pointer">' +
+              '<div class="h-row" style="justify-content:space-between"><strong>' + H.esc(who) + '</strong>' + H.badge(c.status || 'pending', kind) + '</div>' +
+              (c.expires_at ? '<div class="h-muted" style="font-size:12px;margin-top:4px">Expires ' + fmtDate(c.expires_at) + '</div>' : '') + '</div>';
+          });
+          html += '</div>';
+        }
+        m.innerHTML = html;
+        document.getElementById('g-new-contract').addEventListener('click', newContractModal);
+        m.querySelectorAll('[data-contract]').forEach(function (el) {
+          el.addEventListener('click', function () { contractActions(el.getAttribute('data-contract')); });
+        });
+      });
+  }
+
+  function newContractModal() {
+    sb.from('clients').select('id,name,email').eq('coach_id', coach.id).then(function (res) {
+      var clients = res.data || [];
+      var opts = clients.map(function (c) { return { value: c.id, label: c.name || c.email }; });
+      H.modal({
+        title: 'New Contract',
+        body: (opts.length ? H.input({ id: 'ct-client', label: 'Client', type: 'select', options: opts }) : '<p class="h-muted">Add a client first.</p>') +
+          H.input({ id: 'ct-url', label: 'Document URL (optional)', placeholder: 'https://…' }) +
+          H.input({ id: 'ct-expires', label: 'Expires', type: 'date' }),
+        actions: [{ label: 'Cancel', variant: 'ghost' }, { label: 'Create', variant: 'primary' }],
+        onMount: function (ctl) {
+          ctl.el.querySelector('.h-btn--ghost').addEventListener('click', ctl.close);
+          ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
+            if (!opts.length) { ctl.close(); return; }
+            var exp = document.getElementById('ct-expires').value;
+            sb.from('contracts').insert({
+              coach_id: coach.id, client_id: document.getElementById('ct-client').value,
+              template_url: document.getElementById('ct-url').value.trim() || null,
+              status: 'pending', expires_at: exp ? new Date(exp).toISOString() : null
+            }).then(function (r) {
+              if (r.error) H.toast('Failed: ' + r.error.message, 'error');
+              else { H.toast('Contract created', 'success'); ctl.close(); show('contracts'); }
+            });
+          });
+        }
+      });
+    });
+  }
+
+  function contractActions(id) {
+    H.modal({
+      title: 'Contract',
+      body: '<p class="h-muted">Update the signature status.</p>',
+      actions: [
+        { label: 'Mark Signed', variant: 'primary' },
+        { label: 'Mark Expired', variant: 'destructive' },
+        { label: 'Close', variant: 'ghost' }
+      ],
+      onMount: function (ctl) {
+        ctl.el.querySelector('.h-btn--ghost').addEventListener('click', ctl.close);
+        ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
+          sb.from('contracts').update({ status: 'signed', signed_at: new Date().toISOString() }).eq('id', id).then(function () { H.toast('Marked signed', 'success'); ctl.close(); show('contracts'); });
+        });
+        ctl.el.querySelector('.h-btn--destructive').addEventListener('click', function () {
+          sb.from('contracts').update({ status: 'expired' }).eq('id', id).then(function () { H.toast('Marked expired', 'info'); ctl.close(); show('contracts'); });
+        });
+      }
+    });
+  }
+
+  // ---------- Email Templates ----------
+  var EMAIL_VARS = ['{client_name}', '{session_date}', '{package_name}', '{zoom_link}'];
+  function renderEmails(m) {
+    sb.from('email_templates').select('*').eq('coach_id', coach ? coach.id : '0').order('created_at', { ascending: false })
+      .then(function (res) {
+        var templates = res.data || [];
+        var html = head('Email Templates', 'Reusable messages with variables');
+        html += '<div style="margin-bottom:16px">' + H.button({ label: '+ New Template', id: 'g-new-email' }) + '</div>';
+        html += '<div class="h-muted" style="font-size:13px;margin-bottom:12px">Variables: ' + EMAIL_VARS.map(function (v) { return '<code>' + v + '</code>'; }).join(' ') + '</div>';
+        if (!templates.length) {
+          html += H.card({ body: H.empty({ icon: '✉️', title: 'No templates yet', description: 'Create reusable emails for booking, reminders, and follow-ups.' }) });
+        } else {
+          html += '<div style="display:flex;flex-direction:column;gap:10px">';
+          templates.forEach(function (t) {
+            html += '<div class="h-card" data-email="' + H.esc(t.id) + '" style="cursor:pointer">' +
+              '<strong>' + H.esc(t.name) + '</strong><div class="h-muted" style="font-size:13px">' + H.esc(t.subject || '') + '</div></div>';
+          });
+          html += '</div>';
+        }
+        m.innerHTML = html;
+        document.getElementById('g-new-email').addEventListener('click', function () { emailModal(null); });
+        m.querySelectorAll('[data-email]').forEach(function (el) {
+          var t = templates.find(function (x) { return x.id === el.getAttribute('data-email'); });
+          el.addEventListener('click', function () { emailModal(t); });
+        });
+      });
+  }
+
+  function emailModal(t) {
+    t = t || {};
+    H.modal({
+      title: t.id ? 'Edit Template' : 'New Template',
+      body: H.input({ id: 'em-name', label: 'Name', value: t.name || '' }) +
+        H.input({ id: 'em-subject', label: 'Subject', value: t.subject || '' }) +
+        H.input({ id: 'em-body', label: 'Body', type: 'textarea', value: t.body || '' }) +
+        H.input({ id: 'em-trigger', label: 'Trigger', type: 'select', options: ['manual', 'on_booking', 'reminder_48h', 'reminder_24h', 'reminder_1h', 'post_session'], value: t.trigger_type || 'manual' }),
+      actions: (t.id ? [{ label: 'Delete', variant: 'destructive' }] : []).concat([{ label: 'Save', variant: 'primary' }]),
+      onMount: function (ctl) {
+        if (t.id) ctl.el.querySelector('.h-btn--destructive').addEventListener('click', function () {
+          sb.from('email_templates').delete().eq('id', t.id).then(function () { H.toast('Deleted', 'info'); ctl.close(); show('emails'); });
+        });
+        ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
+          var row = {
+            coach_id: coach.id, name: document.getElementById('em-name').value.trim(),
+            subject: document.getElementById('em-subject').value, body: document.getElementById('em-body').value,
+            trigger_type: document.getElementById('em-trigger').value, variables: EMAIL_VARS
+          };
+          if (!row.name) { H.toast('Name required', 'error'); return; }
+          var op = t.id ? sb.from('email_templates').update(row).eq('id', t.id) : sb.from('email_templates').insert(row);
+          op.then(function (r) {
+            if (r.error) H.toast('Failed: ' + r.error.message, 'error');
+            else { H.toast('Saved', 'success'); ctl.close(); show('emails'); }
+          });
+        });
+      }
+    });
+  }
+
+  // ---------- Insights ----------
+  function renderInsights(m) {
+    var cid = coach ? coach.id : '0';
+    sb.from('sessions').select('id,mode,status').eq('coach_id', cid).then(function (sres) {
+      var sessions = sres.data || [];
+      var ids = sessions.map(function (s) { return s.id; });
+      var notesQ = ids.length
+        ? sb.from('session_notes').select('tools_used').in('session_id', ids)
+        : Promise.resolve({ data: [] });
+      return Promise.resolve(notesQ).then(function (nres) { return { sessions: sessions, notes: nres.data || [] }; });
+    }).then(function (bundle) {
+      var sessions = bundle.sessions, notes = bundle.notes;
+      var completed = sessions.filter(function (s) { return s.status === 'completed'; }).length;
+      var modeCount = { coaching: 0, personal_dev: 0, mixed: 0 };
+      sessions.forEach(function (s) { if (modeCount[s.mode] != null) modeCount[s.mode]++; });
+      var tools = {};
+      notes.forEach(function (n) { (n.tools_used || []).forEach(function (t) { tools[t] = (tools[t] || 0) + 1; }); });
+      var toolList = Object.keys(tools).sort(function (a, b) { return tools[b] - tools[a]; });
+
+      var html = head('Insights', 'Patterns across your coaching');
+      html += '<div class="g-kpis">' +
+        H.kpiCard({ value: sessions.length, label: 'Total Sessions' }) +
+        H.kpiCard({ value: completed, label: 'Completed' }) +
+        H.kpiCard({ value: modeCount.coaching, label: 'Coaching' }) +
+        H.kpiCard({ value: modeCount.personal_dev, label: 'Personal Dev' }) + '</div>';
+      html += '<div class="g-section-title">Coaching vs Personal Dev</div>';
+      var totalModes = modeCount.coaching + modeCount.personal_dev + modeCount.mixed || 1;
+      html += H.card({ body:
+        'Coaching ' + Math.round(modeCount.coaching / totalModes * 100) + '% · ' +
+        'Personal Dev ' + Math.round(modeCount.personal_dev / totalModes * 100) + '% · ' +
+        'Mixed ' + Math.round(modeCount.mixed / totalModes * 100) + '%' });
+      html += '<div class="g-section-title">Tools Used (frequency)</div>';
+      if (!toolList.length) html += H.card({ body: H.empty({ icon: '🧰', title: 'No tools logged yet', description: 'Tools you note in session notes will rank here.' }) });
+      else {
+        html += '<div style="display:flex;flex-direction:column;gap:6px">';
+        toolList.forEach(function (t) { html += '<div class="h-card h-row" style="justify-content:space-between"><span>' + H.esc(t) + '</span>' + H.badge(String(tools[t]), 'neutral') + '</div>'; });
+        html += '</div>';
+      }
+      m.innerHTML = html;
+    }).catch(function (e) {
+      m.innerHTML = head('Insights') + H.error({ title: 'Failed to load', message: String(e && e.message || e) });
     });
   }
 
