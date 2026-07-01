@@ -86,16 +86,19 @@
   }
 
   function startCheckout(packageId){
+    console.log('[book] startCheckout', packageId);
     var sb = window.getSb();
+    if (!sb){ H.toast('Still loading — try again in a moment.', 'error'); return; }
     window.getUser().then(function(user){
+      console.log('[book] user:', user && user.email);
       if (!user){
-        // Send to Google OAuth, return to this page and auto-resume this package
         var back = window.location.origin + '/coaching/book.html?pkg=' + encodeURIComponent(packageId);
+        H.toast('Redirecting to sign in…', 'info');
         window.signIn(back);
         return;
       }
       H.toast('Starting secure checkout…', 'info');
-      sb.functions.invoke('stripe-checkout', {
+      return sb.functions.invoke('stripe-checkout', {
         body: {
           package_id: packageId,
           client_email: user.email,
@@ -103,7 +106,8 @@
           cancel_url: window.location.origin + '/coaching/book.html'
         }
       }).then(function(res){
-        var data = res.data, error = res.error;
+        console.log('[book] invoke result:', res);
+        var data = res && res.data, error = res && res.error;
         if (error || !data || !data.url){
           var msg = (data && data.error) || (error && error.message) || 'Checkout unavailable';
           if (String(msg).toLowerCase().indexOf('disabled') !== -1){
@@ -111,12 +115,17 @@
               body:'<p class="h-muted">Online payment isn’t switched on yet. Reach out and Leo will get you booked directly.</p>',
               actions:[{ label:'Contact', variant:'primary', href:'/contact/' }] });
           } else {
-            H.toast(msg, 'error');
+            H.toast('Could not start checkout: ' + msg, 'error');
           }
           return;
         }
+        console.log('[book] redirecting to', data.url);
         window.location.href = data.url;
       });
+    }).catch(function(err){
+      // Any rejection (network/CORS/auth) surfaces here instead of failing silently.
+      console.error('[book] checkout failed:', err);
+      H.toast('Checkout error: ' + (err && err.message ? err.message : err), 'error');
     });
   }
 
