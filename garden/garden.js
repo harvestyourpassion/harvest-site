@@ -233,7 +233,8 @@
         H.badge(c.status || 'active', c.status === 'active' ? 'active' : 'paused') +
         H.button({ label: 'Schedule Session', variant: 'secondary', id: 'g-c-session' }) +
         H.button({ label: 'Add Note', variant: 'ghost', id: 'g-c-note' }) +
-        (c.user_id ? H.button({ label: '👁 View as Client', variant: 'secondary', id: 'g-c-actas' }) : '') + '</div>';
+        (c.user_id ? H.button({ label: '👁 View as Client', variant: 'secondary', id: 'g-c-actas' }) : '') +
+        (c.status === 'prospect' ? H.button({ label: 'Convert to Client', id: 'g-c-convert' }) : '') + '</div>';
       if (c.current_focus) html += H.card({ body: '<strong>Current focus:</strong> ' + H.esc(c.current_focus) });
       if (c.goals && c.goals.length) {
         html += '<div class="g-section-title">Goals</div>' + H.card({ body: c.goals.map(function (g) { return H.badge(g, 'neutral'); }).join(' ') });
@@ -263,6 +264,14 @@
       var actAs = document.getElementById('g-c-actas');
       if (actAs) actAs.addEventListener('click', function () {
         w.location.href = '/roots/?as=' + encodeURIComponent(c.user_id) + '&asname=' + encodeURIComponent(c.name || 'Client');
+      });
+      var conv = document.getElementById('g-c-convert');
+      if (conv) conv.addEventListener('click', function () {
+        sb.from('clients').update({ status: 'active' }).eq('id', c.id).then(function (r) {
+          if (r.error) { H.toast('Failed: ' + r.error.message, 'error'); return; }
+          sb.from('client_activity').insert({ client_id: c.id, type: 'comment', description: 'Converted from prospect to active client.' }).then(function () {});
+          H.toast('Converted to client', 'success'); show('client', c.id);
+        });
       });
     });
   }
@@ -491,12 +500,47 @@
         } else {
           html += '<div style="display:flex;flex-direction:column;gap:10px">';
           rs.forEach(function (r) {
-            html += H.card({ body: '<div style="font-weight:600">' + H.esc(r.title) + '</div>' + (r.type ? H.badge(r.type, 'neutral') : '') });
+            html += H.card({ body: '<div class="h-row" style="justify-content:space-between">' +
+              '<span><span style="font-weight:600">' + H.esc(r.title) + '</span> ' + (r.type ? H.badge(r.type, 'neutral') : '') + '</span>' +
+              '<button class="h-btn h-btn--secondary" data-share="' + H.esc(r.id) + '" style="min-height:32px;padding:0 12px">Share</button></div>' });
           });
           html += '</div>';
         }
         m.innerHTML = html;
+        m.querySelectorAll('[data-share]').forEach(function (b) {
+          b.addEventListener('click', function () { assignResourceModal(b.getAttribute('data-share')); });
+        });
       });
+  }
+
+  // Assign From Anywhere: share a resource with a client (shared_items row).
+  function assignResourceModal(resourceId) {
+    sb.from('clients').select('id,user_id,name,email').eq('coach_id', coach.id).then(function (res) {
+      var clients = (res.data || []).filter(function (c) { return c.user_id; });
+      if (!clients.length) { H.toast('No clients with a linked account to share to.', 'info'); return; }
+      var opts = clients.map(function (c) { return { value: c.id, label: c.name || c.email }; });
+      H.modal({
+        title: 'Share resource',
+        body: H.input({ id: 'sh-client', label: 'Client', type: 'select', options: opts }) +
+          H.input({ id: 'sh-msg', label: 'Message (optional)', type: 'textarea' }),
+        actions: [{ label: 'Cancel', variant: 'ghost' }, { label: 'Share', variant: 'primary' }],
+        onMount: function (ctl) {
+          ctl.el.querySelector('.h-btn--ghost').addEventListener('click', ctl.close);
+          ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
+            var client = clients.find(function (c) { return c.id === document.getElementById('sh-client').value; });
+            sb.from('shared_items').insert({
+              from_user_id: profile.id, to_user_id: client.user_id, type: 'resource',
+              reference_id: resourceId, message: document.getElementById('sh-msg').value.trim() || null
+            }).then(function (r) {
+              if (r.error) { H.toast('Failed: ' + r.error.message, 'error'); return; }
+              sb.from('client_activity').insert({ client_id: client.id, type: 'resource_shared', description: 'Resource shared', reference_id: resourceId }).then(function () {});
+              sb.from('notifications').insert({ user_id: client.user_id, type: 'resource_shared', title: 'New resource shared', body: 'Your coach shared a resource with you.', channel: 'in_app', reference_id: resourceId }).then(function () {});
+              H.toast('Shared with ' + (client.name || client.email), 'success'); ctl.close();
+            });
+          });
+        }
+      });
+    });
   }
 
   // ---------- Billing ----------
