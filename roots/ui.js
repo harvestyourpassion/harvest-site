@@ -430,6 +430,8 @@ function renderItemCard(item){
     var done = item.subItems.filter(function(s){return s.done;}).length;
     html += '<span class="text-xs text-slate-400">' + done + '/' + item.subItems.length + '</span>';
   }
+  // Discuss-next-session flag (Addendum B): client toggles; coach sees in prep.
+  html += '<span class="text-xs cursor-pointer ' + (item.discussNextSession?"text-amber-400":"text-slate-600 hover:text-slate-300") + '" onclick="event.stopPropagation();toggleDiscuss(\'' + item.id + '\')" title="Flag to discuss next session"><i class="fas fa-comment-dots"></i></span>';
   // Tab origin badge (shown on All tab so user knows where item lives)
   if(activeMainTab === "all" || activeKpiFilter){
     var tabInfo = state.mainTabs.find(function(t){return t.id===item.tab;});

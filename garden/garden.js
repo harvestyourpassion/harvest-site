@@ -159,8 +159,28 @@
       var ns = document.getElementById('g-new-session');
       if (nc) nc.addEventListener('click', function () { createClientModal(); });
       if (ns) ns.addEventListener('click', function () { createSessionModal(); });
+      renderToDiscuss(m);
     }).catch(function (e) {
       m.innerHTML = head('Dashboard') + H.error({ title: 'Failed to load', message: String(e && e.message || e) });
+    });
+  }
+
+  // Items clients flagged "discuss next session" (Addendum B), across all clients.
+  function renderToDiscuss(m) {
+    sb.from('clients').select('id,user_id,name').eq('coach_id', coach ? coach.id : '0').then(function (r) {
+      var clients = r.data || [], byUser = {}, uids = [];
+      clients.forEach(function (c) { if (c.user_id) { byUser[c.user_id] = c.name; uids.push(c.user_id); } });
+      if (!uids.length) return;
+      sb.from('items').select('id,title,type,user_id').eq('discuss_next_session', true).in('user_id', uids).then(function (ir) {
+        var items = ir.data || [];
+        if (!items.length) return;
+        var html = '<div class="g-section-title">Items to Discuss (' + items.length + ')</div><div style="display:flex;flex-direction:column;gap:8px">';
+        items.forEach(function (it) {
+          html += H.card({ body: '<div class="h-row" style="justify-content:space-between"><span>' + H.typeBadge(it.type) + ' ' + H.esc(it.title) + '</span><span class="h-muted" style="font-size:12px">' + H.esc(byUser[it.user_id] || '') + '</span></div>' });
+        });
+        html += '</div>';
+        var div = document.createElement('div'); div.innerHTML = html; m.appendChild(div);
+      });
     });
   }
 
@@ -277,12 +297,13 @@
   var OUTCOMES = ['scheduled', 'in_progress', 'completed', 'cancelled', 'rescheduled', 'forfeited', 'no_show'];
   function renderSession(m, sessionId) {
     Promise.all([
-      sb.from('sessions').select('*, clients(name,email)').eq('id', sessionId).maybeSingle(),
+      sb.from('sessions').select('*, clients(name,email,user_id)').eq('id', sessionId).maybeSingle(),
       sb.from('session_notes').select('*').eq('session_id', sessionId).order('created_at')
     ]).then(function (res) {
       var s = res[0].data;
       var notes = res[1].data || [];
       if (!s) { m.innerHTML = H.error({ title: 'Session not found' }); return; }
+      var clientUserId = s.clients && s.clients.user_id;
       var clientName = (s.clients && (s.clients.name || s.clients.email)) || 'Client';
       var html = '<a class="h-muted" style="cursor:pointer;font-size:13px" id="g-s-back">&larr; Sessions</a>';
       html += head('Session — ' + clientName, fmtDate(s.scheduled_at));
@@ -317,6 +338,26 @@
       });
       document.getElementById('g-followup').addEventListener('click', function () {
         postSessionFollowup(s);
+      });
+      if (clientUserId) renderSessionDiscuss(m, clientUserId);
+    });
+  }
+
+  // Flagged "discuss next session" items for this client, shown in session prep.
+  function renderSessionDiscuss(m, clientUserId) {
+    sb.from('items').select('id,title,type').eq('user_id', clientUserId).eq('discuss_next_session', true).then(function (r) {
+      var items = r.data || [];
+      if (!items.length) return;
+      var wrap = document.createElement('div');
+      var html = '<div class="g-section-title">Flagged to Discuss (' + items.length + ')</div><div style="display:flex;flex-direction:column;gap:8px">';
+      items.forEach(function (it) { html += H.card({ body: H.typeBadge(it.type) + ' ' + H.esc(it.title) }); });
+      html += '</div><div style="margin-top:10px">' + H.button({ label: 'Clear all flags', variant: 'ghost', id: 'g-clear-flags' }) + '</div>';
+      wrap.innerHTML = html; m.appendChild(wrap);
+      document.getElementById('g-clear-flags').addEventListener('click', function () {
+        sb.from('items').update({ discuss_next_session: false }).eq('user_id', clientUserId).eq('discuss_next_session', true).then(function (res) {
+          if (res.error) H.toast('Failed: ' + res.error.message, 'error');
+          else { H.toast('Flags cleared', 'success'); wrap.remove(); }
+        });
       });
     });
   }

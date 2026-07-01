@@ -147,6 +147,7 @@ function _rowToItem(row){
     tags: legacyTags || [],
     customFields: row.custom_fields || [],
     pinned: !!row.pinned,
+    discussNextSession: !!row.discuss_next_session,
     createdAt: row.created_at ? String(row.created_at).slice(0, 10) : "",
     _order: ord
   };
@@ -202,8 +203,19 @@ function _itemToRow(it, idx){
     comments: it.comments || [],
     custom_fields: it.customFields || [],
     pinned: !!it.pinned,
+    discuss_next_session: !!it.discussNextSession,
     updated_at: new Date().toISOString()
   };
+}
+
+// Toggle the "discuss next session" flag on an item (Addendum B).
+function toggleDiscuss(id){
+  var item = null, i;
+  for(i = 0; i < state.items.length; i++){ if(state.items[i].id === id){ item = state.items[i]; break; } }
+  if(!item) return;
+  item.discussNextSession = !item.discussNextSession;
+  saveData();
+  if(typeof render === "function") render();
 }
 
 // Create tab rows for any item.tab key that has no cloud row yet.
