@@ -183,7 +183,7 @@ function renderKPISection(){
     html += '<div class="text-xs text-slate-400 mb-1">' + k.label + '</div>' + display;
     html += '</div>';
   }
-  html += '<div onclick="showAddKPI()" class="kpi-card surface rounded-lg p-4 border border-c border-dashed hover:border-blue-500 cursor-pointer flex items-center justify-center"><i class="fas fa-plus text-slate-400"></i></div>';
+  html += '<div onclick="showAddKPI()" class="builder-only kpi-card surface rounded-lg p-4 border border-c border-dashed hover:border-blue-500 cursor-pointer flex items-center justify-center"><i class="fas fa-plus text-slate-400"></i></div>';
   html += '</div></div>';
   return html;
 }
@@ -376,7 +376,7 @@ function renderManualSections(sub, items){
     html += renderItemList(unsectioned);
     html += '</div>';
   }
-  html += '<button onclick="showAddSection()" class="text-sm text-slate-400 hover:text-blue-400 mt-2"><i class="fas fa-plus mr-1"></i>Add Section</button>';
+  html += '<button onclick="showAddSection()" class="builder-only text-sm text-slate-400 hover:text-blue-400 mt-2"><i class="fas fa-plus mr-1"></i>Add Section</button>';
   return html;
 }
 

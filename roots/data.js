@@ -83,6 +83,52 @@ function initSupabase(){
 
 function doSignOut(){ if(sb) sb.auth.signOut(); }
 
+// ===== 4-tier operating modes (Addendum E): simple | guided | builder | custom
+var harvestMode = "simple";
+function applyMode(mode){
+  harvestMode = mode || "simple";
+  window.harvestMode = harvestMode;
+  document.body.className = document.body.className.replace(/\bmode-\w+\b/g, "").trim();
+  document.body.classList.add("mode-" + harvestMode);
+}
+function loadMode(){
+  if(!sb || !ownerId) return;
+  sb.from("profiles").select("mode").eq("id", ownerId).maybeSingle().then(function(res){
+    applyMode((res.data && res.data.mode) || "simple");
+  });
+}
+function setMode(mode){
+  applyMode(mode);
+  if(sb && ownerId) sb.from("profiles").update({ mode: mode }).eq("id", ownerId).then(function(){});
+  if(mode === "guided" && typeof H !== "undefined" && H.toast){
+    H.toast("Guided mode: we'll suggest features as you go. Switch to Builder for full power.", "info", 5000);
+  }
+  if(typeof render === "function") render();
+}
+// Mode chooser modal (uses window.H if present, else a simple prompt).
+function showModeChooser(){
+  var modes = [
+    {id:"simple", label:"Simple", desc:"Clean and minimal. Just the basics."},
+    {id:"guided", label:"Guided", desc:"Simple + tips that unlock features as you go."},
+    {id:"builder", label:"Builder", desc:"Full power: custom fields, sections, KPIs, relationships."},
+    {id:"custom", label:"Custom", desc:"(Coming soon) full theme & layout control."}
+  ];
+  if(typeof H === "undefined" || !H.modal){
+    var m = prompt("Mode: simple / guided / builder", harvestMode); if(m) setMode(m); return;
+  }
+  var body = modes.map(function(o){
+    return '<label class="h-row" style="gap:10px;align-items:flex-start;padding:8px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer">' +
+      '<input type="radio" name="hmode" value="' + o.id + '"' + (o.id===harvestMode?" checked":"") + (o.id==="custom"?" disabled":"") + '>' +
+      '<span><strong>' + o.label + '</strong><div class="h-muted" style="font-size:12px">' + o.desc + '</div></span></label>';
+  }).join("");
+  var modal = H.modal({ title:"Operating mode", body:body, actions:[{label:"Done", variant:"primary"}] });
+  modal.el.querySelector(".h-btn--primary").addEventListener("click", function(){
+    var sel = modal.el.querySelector('input[name=hmode]:checked');
+    if(sel) setMode(sel.value);
+    modal.close();
+  });
+}
+
 // ===== LOAD =====
 function loadFromCloud(){
   // Structure (tabs/subtabs/sections/kpis) from the app's defaults.
@@ -158,6 +204,21 @@ function _showApp(){
   document.getElementById("subTabNav").classList.remove("hidden");
   var fb = document.getElementById("filterBar");
   fb.style.display = ""; fb.classList.remove("hidden");
+  loadMode();
+  injectModeButton();
+}
+
+function injectModeButton(){
+  if(document.getElementById("hMoteBtn")) return;
+  var host = document.querySelector("#filterBar .harvest-container");
+  if(!host) return;
+  var b = document.createElement("button");
+  b.id = "hMoteBtn";
+  b.className = "text-xs text-slate-400 hover:text-white px-2 py-1";
+  b.title = "Operating mode";
+  b.innerHTML = '<i class="fas fa-sliders-h mr-1"></i><span id="hModeLabel">Mode</span>';
+  b.onclick = showModeChooser;
+  host.appendChild(b);
 }
 
 // ===== SAVE (debounced cloud sync of items) =====

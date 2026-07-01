@@ -15,3 +15,5 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#3b82f6}
 ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:#1e293b}::-webkit-scrollbar-thumb{background:#475569;border-radius:3px}
 .tooltip{position:relative}.tooltip:hover::after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#1e293b;color:#e2e8f0;padding:4px 8px;border-radius:4px;font-size:0.7rem;white-space:nowrap;z-index:99}
 .expand-arrow{transition:transform 0.15s ease}.item-card:hover .expand-arrow{color:#94a3b8}
+/* 4-tier modes: Simple & Guided hide advanced/builder-only controls. */
+body.mode-simple .builder-only,body.mode-guided .builder-only{display:none!important}

@@ -242,7 +242,7 @@ function buildExpandContent(id){
       html += '<div class="flex items-center gap-2"><label class="text-xs text-slate-400 w-24">' + item.customFields[cf].key + '</label><input class="flex-1 text-sm" value="' + String(item.customFields[cf].value).replace(/"/g,"&quot;") + '" onblur="updateCustomField(\'' + id + '\',' + cf + ',this.value)"><button onclick="removeCustomField(\'' + id + '\',' + cf + ')" class="text-red-400 hover:text-red-300 text-xs p-1"><i class="fas fa-trash"></i></button></div>';
     }
   }
-  html += '<button onclick="showAddCustomField(\'' + id + '\')" class="text-xs text-blue-400 hover:text-blue-300"><i class="fas fa-plus mr-1"></i>Add Field</button>';
+  html += '<button onclick="showAddCustomField(\'' + id + '\')" class="builder-only text-xs text-blue-400 hover:text-blue-300"><i class="fas fa-plus mr-1"></i>Add Field</button>';
   html += '</div>';
 
   // Sub-items
