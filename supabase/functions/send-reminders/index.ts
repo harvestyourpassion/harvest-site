@@ -14,7 +14,12 @@ const WINDOWS = [
 ];
 const TOLERANCE_MIN = 20; // cron cadence slack
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  // Simple shared-secret guard so only the scheduler can trigger sends.
+  const cronSecret = (Deno.env.get("CRON_SECRET") ?? "").trim();
+  if (cronSecret && req.headers.get("x-cron-key") !== cronSecret) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
+  }
   try {
     const supa = createClient(
       Deno.env.get("SUPABASE_URL")!,
