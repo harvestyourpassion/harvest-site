@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Coach — Harvest Your Passion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/nav.js"></script>
+<script src="/shared/devpanel.js"></script>
+<script src="/shared/pwa.js"></script>
+<link rel="stylesheet" href="/shared/h-components.css">
+<script src="/shared/h-components.js"></script>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<style>
+  body { margin:0; background:var(--bg); color:var(--text-primary); font-family:Inter,system-ui,sans-serif; }
+  .cc-wrap { max-width:640px; margin:0 auto; padding:26px 18px; }
+  .cc-h1 { font-size:var(--text-2xl); font-weight:700; margin:0 0 4px; color:#f1f5f9; }
+  .cc-sub { color:#cbd5e1; margin:0 0 20px; }
+  .cc-sec { font-size:var(--text-lg); font-weight:700; margin:20px 0 10px; }
+</style>
+</head>
+<body>
+<div class="cc-wrap h-scope" id="cc-root"></div>
+<script>
+  function fmt(d){ return d ? new Date(d).toLocaleString(undefined,{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : ''; }
+  function init(){
+    var sb = window.getSb(), root = document.getElementById('cc-root');
+    root.innerHTML = H.loading({ skeleton:true, count:3 });
+    window.getUser().then(function(user){
+      if(!user){
+        root.innerHTML = '<div class="h-empty"><div class="h-empty__icon">🔒</div><div class="h-empty__title">Sign in to see your coach workspace</div><div style="margin-top:16px">'+H.button({label:'Sign in',id:'cc-si'})+'</div></div>';
+        var b=document.getElementById('cc-si'); if(b) b.addEventListener('click',function(){ window.signIn(window.location.href); });
+        return;
+      }
+      sb.from('clients').select('id,coach_id,name,current_focus').eq('user_id', user.id).maybeSingle().then(function(r){
+        var client = r.data;
+        if(!client){ root.innerHTML='<h1 class="cc-h1">My Coach</h1><p class="cc-sub">No coaching relationship is linked to this account yet.</p>'+H.button({label:'Explore coaching',href:'/coaching/book.html'}); return; }
+        render(user, client);
+      });
+    });
+  }
+  function render(user, client){
+    var sb = window.getSb();
+    Promise.all([
+      sb.from('sessions').select('scheduled_at,status,zoom_link').eq('client_id', client.id).gte('scheduled_at', new Date().toISOString()).order('scheduled_at').limit(5),
+      sb.from('shared_items').select('reference_id,message,created_at').eq('to_user_id', user.id).eq('type','resource').order('created_at',{ascending:false})
+    ]).then(function(res){
+      var sessions = res[0].data || [];
+      var shares = res[1].data || [];
+      var refIds = shares.map(function(s){ return s.reference_id; }).filter(Boolean);
+      var resQ = refIds.length ? sb.from('resources').select('id,title,type,url').in('id', refIds) : Promise.resolve({data:[]});
+      Promise.resolve(resQ).then(function(rr){
+        var byId = {}; (rr.data||[]).forEach(function(x){ byId[x.id]=x; });
+        var html = '<h1 class="cc-h1">My Coach</h1><p class="cc-sub">Your coaching workspace with Leo.</p>';
+        if(client.current_focus) html += H.card({ body:'<strong>Current focus:</strong> '+H.esc(client.current_focus) });
+
+        html += '<div class="h-row" style="gap:8px;margin:14px 0;flex-wrap:wrap">' +
+          H.button({ label:'Message coach', href:'/messages/' }) +
+          H.button({ label:'Request a session', href:'/coaching/book.html?paid=1', variant:'secondary' }) +
+          H.button({ label:'Next steps', href:'/coaching/next-steps.html', variant:'ghost' }) + '</div>';
+
+        html += '<div class="cc-sec">Upcoming sessions</div>';
+        if(!sessions.length) html += H.card({ body:'<span class="h-muted">No sessions scheduled. Use “Request a session” above.</span>' });
+        else sessions.forEach(function(s){
+          html += H.card({ body:'<div class="h-row" style="justify-content:space-between"><span>'+fmt(s.scheduled_at)+'</span>'+ (s.zoom_link?'<a href="'+H.esc(s.zoom_link)+'" style="color:var(--accent-green)">Zoom</a>':H.badge(s.status||'scheduled','active'))+'</div>' });
+        });
+
+        html += '<div class="cc-sec">Shared resources</div>';
+        if(!shares.length) html += H.card({ body:'<span class="h-muted">Resources your coach shares will appear here.</span>' });
+        else shares.forEach(function(sh){
+          var r = byId[sh.reference_id];
+          html += H.card({ body:
+            '<div style="font-weight:600">'+ (r ? (r.url?'<a href="'+H.esc(r.url)+'" target="_blank" style="color:var(--accent-blue)">'+H.esc(r.title)+'</a>':H.esc(r.title)) : 'Shared resource') +'</div>' +
+            (r&&r.type?H.badge(r.type,'neutral'):'') +
+            (sh.message?'<div class="h-muted" style="font-size:13px;margin-top:4px">'+H.esc(sh.message)+'</div>':'') });
+        });
+        document.getElementById('cc-root').innerHTML = html;
+      });
+    });
+  }
+  if (window.getSb && window.getSb()) init();
+  else document.addEventListener('DOMContentLoaded', function(){ setTimeout(init,150); });
+</script>
+</body>
+</html>
