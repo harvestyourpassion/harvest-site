@@ -9,21 +9,23 @@ _As of this build. ✅ = done · 🟡 = partial · ❌ = not built · 🔒 = nee
 - 🔒 **Google Calendar** — in Garden → Settings click **Connect Google Calendar**, then flip `google_calendar_sync_enabled`. (Two-way sync code is live: freebusy + event push.)
 - 🔒 **Reminder cron** — scheduled every 15 min; only actually sends once Twilio/email above are on.
 
+## Recently completed ✅
+- ✅ **Messaging** (addendum A) — coach↔client threads, notifications, soft per-package limit
+- ✅ **Act As Client** (addendum D) — `/roots/?as=…`, performed_by audit, banner
+- ✅ **Discuss Next Session** (addendum B) — item flag + Garden aggregation + session-prep clear
+- ✅ **Session Templates** — CRUD + apply-on-schedule (template_id)
+- ✅ **Convert prospect→client** — button in client detail
+- ✅ **Assign From Anywhere** — Share resource → client (shared_items + notification)
+
 ## Roots — remaining
 - ❌ **Coach Connection view** (client side): shared resources, request-a-session, items visible to coach
-- ❌ **"Discuss Next Session"** (addendum B): `discuss_next_session` flag + item action + Coach Inbox section
-- ❌ **Act As Client** (addendum D): view-as-client + audit log via `performed_by`
 - 🟡 **4-tier modes** (Simple/Guided/Builder/Custom): `mode` field exists; UI gating + "unlock" prompts not wired (Custom is ⏸)
 - 🟡 **Item relationships** (directional): table exists; linking UI not built (cross-tab tags only)
 - 🟡 **Saved views / templates** on the new cloud schema: verify persistence
 - 🟡 **Notifications in Roots** (overdue/due-soon surfacing)
 
 ## Garden — remaining
-- ❌ **Messaging** (addendum A): coach↔client threads, unread in inbox, per-package message limits (`conversations`/`messages` tables exist)
-- ❌ **Session Templates** UI (save/reuse structures) — table exists, no UI
 - ❌ **Session Plans** (PD topic library, plan builder, per-client track)
-- ❌ **Assign From Anywhere** (share any resource → pick client) + Resource "Assign to client"
-- ❌ **Convert prospect → client** button (triggers onboarding) in Coach Inbox
 - ❌ **Coupons/discounts** UI (table exists)
 - 🟡 **Coach Inbox** — basic (prospects + upcoming); missing comments/completions/missed-habits/surveys/messages/items-to-discuss
 - 🟡 **Client Profile tabs** — Overview/Timeline/Sessions done; Notes/Progress/Documents/Shared not
