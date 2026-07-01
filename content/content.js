@@ -161,7 +161,9 @@
     });
   }
 
+  var GEN_PLATFORMS = ['linkedin', 'facebook', 'instagram', 'newsletter'];
   function editModal(it) {
+    var pv = it.platform_versions || {};
     H.modal({
       title: 'Edit Content',
       body:
@@ -170,7 +172,18 @@
         H.input({ id: 'ce-body', label: 'Body', type: 'textarea', value: it.body || '' }) +
         H.input({ id: 'ce-review', label: 'Review interval', type: 'select', options: ['none', '6mo', '12mo', '24mo'], value: it.review_interval || 'none' }) +
         '<label class="h-row" style="gap:8px;margin:8px 0"><input type="checkbox" id="ce-public" ' + (it.is_public ? 'checked' : '') + '> Public (publish to blog & libraries)</label>' +
-        '<div class="h-row" style="gap:6px;flex-wrap:wrap" id="ce-sched">' +
+        // Knowledge relationships (Content spec)
+        '<div class="g-section-title" style="font-size:14px;font-weight:700;margin:12px 0 6px">Knowledge relationships</div>' +
+        H.input({ id: 'ce-principles', label: 'Related principles (comma-separated)', value: (it.related_principles || []).join(', ') }) +
+        H.input({ id: 'ce-businesses', label: 'Related businesses (comma-separated)', value: (it.related_businesses || []).join(', ') }) +
+        // Platform versions generator
+        '<div class="g-section-title" style="font-size:14px;font-weight:700;margin:12px 0 6px">Platform versions</div>' +
+        GEN_PLATFORMS.map(function (p) {
+          return '<div style="margin-bottom:8px"><div class="h-row" style="justify-content:space-between"><span style="text-transform:capitalize;font-size:13px">' + p + '</span>' +
+            '<button type="button" class="h-btn h-btn--ghost" data-gen="' + p + '" style="min-height:26px;padding:0 8px;font-size:12px">Generate</button></div>' +
+            '<textarea class="h-textarea" id="pv-' + p + '" style="min-height:60px">' + H.esc(pv[p] || '') + '</textarea></div>';
+        }).join('') +
+        '<div class="h-row" style="gap:6px;flex-wrap:wrap;margin-top:8px" id="ce-sched">' +
         '<span class="h-muted" style="width:100%">Schedule to platform:</span>' +
         PLATFORMS.map(function (p) { return '<button type="button" class="h-btn h-btn--secondary" data-platform="' + p + '" style="min-height:32px;padding:0 10px">' + p + '</button>'; }).join('') +
         '</div>',
@@ -179,13 +192,31 @@
         ctl.el.querySelector('.h-btn--destructive').addEventListener('click', function () {
           sb.from('content_items').delete().eq('id', it.id).then(function () { H.toast('Deleted', 'info'); ctl.close(); show(view); });
         });
+        // Platform-version generator: seed a starting draft from title + body.
+        ctl.el.querySelectorAll('[data-gen]').forEach(function (g) {
+          g.addEventListener('click', function () {
+            var p = g.getAttribute('data-gen');
+            var title = document.getElementById('ce-title').value.trim();
+            var body = document.getElementById('ce-body').value.trim();
+            document.getElementById('pv-' + p).value = genPlatform(p, title, body);
+            H.toast('Draft generated — edit as needed', 'info');
+          });
+        });
         ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
+          var listFrom = function (id) {
+            return document.getElementById(id).value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+          };
+          var pvals = {};
+          GEN_PLATFORMS.forEach(function (p) { var v = document.getElementById('pv-' + p).value.trim(); if (v) pvals[p] = v; });
           var upd = {
             title: document.getElementById('ce-title').value.trim(),
             stage: document.getElementById('ce-stage').value,
             body: document.getElementById('ce-body').value,
             review_interval: document.getElementById('ce-review').value,
             is_public: document.getElementById('ce-public').checked,
+            related_principles: listFrom('ce-principles'),
+            related_businesses: listFrom('ce-businesses'),
+            platform_versions: pvals,
             updated_at: new Date().toISOString()
           };
           if (upd.review_interval !== 'none') {
@@ -208,6 +239,21 @@
         });
       }
     });
+  }
+
+  // Seed a platform-specific draft from the source (template-based; edit before
+  // publishing). No AI key required.
+  function genPlatform(platform, title, body) {
+    var sentences = (body || '').replace(/\s+/g, ' ').split(/(?<=[.!?])\s/).slice(0, 6);
+    var hook = sentences.slice(0, 1).join(' ');
+    var lead = sentences.slice(0, 3).join(' ');
+    var tags = (title || '').split(/\s+/).filter(function (w) { return w.length > 4; }).slice(0, 3)
+      .map(function (w) { return '#' + w.replace(/[^A-Za-z0-9]/g, ''); }).join(' ');
+    if (platform === 'linkedin') return title + '\n\n' + lead + '\n\nRead more on the blog.\n\n' + tags;
+    if (platform === 'facebook') return title + '\n\n' + lead + '\n\n👉 Full article on harvestyourpassion.com';
+    if (platform === 'instagram') return hook + '\n\n' + tags + ' #harvestyourpassion';
+    if (platform === 'newsletter') return 'Subject: ' + title + '\n\n' + lead + '\n\n— Leo';
+    return lead;
   }
 
   w.Content = { init: init };
