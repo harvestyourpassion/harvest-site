@@ -89,6 +89,9 @@
   }
 
   function init() {
+    // Never show the dev panel on the production domain (admins can still use
+    // it on localhost + the netlify staging URL).
+    if (env() === 'production') return;
     var sb = w.getSb && w.getSb();
     if (!sb) { setTimeout(init, 300); return; }
     w.getUser().then(function (user) {

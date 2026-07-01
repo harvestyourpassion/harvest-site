@@ -478,7 +478,7 @@
               '<div class="h-muted" style="font-size:13px;margin-bottom:8px">' + H.esc(p.description || '') + '</div>' +
               '<div class="h-row" style="gap:6px;flex-wrap:wrap">' +
               H.badge(p.hours + ' hrs', 'neutral') +
-              (p.session_count ? H.badge(p.session_count + ' sessions', 'neutral') : '') +
+              (p.session_count ? H.badge(p.session_count + (p.session_count == 1 ? ' session' : ' sessions'), 'neutral') : '') +
               (p.message_limit === null ? H.badge('Unlimited msgs', 'active') : H.badge(p.message_limit + ' msgs', 'neutral')) +
               '</div>'
             });

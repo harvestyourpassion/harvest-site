@@ -68,7 +68,7 @@
             '<div class="bk-desc">' + H.esc(p.description||'') + '</div>' +
             '<div class="h-row" style="gap:6px;flex-wrap:wrap;margin-bottom:12px">' +
               H.badge(p.hours + ' hrs', 'neutral') +
-              (p.session_count ? H.badge(p.session_count + ' sessions', 'neutral') : '') +
+              (p.session_count ? H.badge(p.session_count + (p.session_count == 1 ? ' session' : ' sessions'), 'neutral') : '') +
             '</div>' +
             H.button({ label:'Book — ' + money(p.price), block:true, class:'bk-book', id:'book-'+p.id }) +
           '</div>';

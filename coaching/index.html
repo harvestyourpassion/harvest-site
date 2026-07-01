@@ -328,9 +328,9 @@
         grid.innerHTML = allPackages.map(function(pkg, i) {
           var popular = i === 1 ? '<span class="absolute -top-3 right-4 bg-brand-warm text-white text-xs px-3 py-1 rounded-full font-medium">Most Popular</span>' : '';
           var features = [];
-          if (pkg.hours) features.push(pkg.hours + ' hours of coaching');
-          if (pkg.sessions) features.push(pkg.sessions + ' sessions');
-          if (pkg.weeks) features.push(pkg.weeks + ' weeks');
+          if (pkg.hours) features.push(pkg.hours + (pkg.hours == 1 ? ' hour' : ' hours') + ' of coaching');
+          if (pkg.sessions) features.push(pkg.sessions + (pkg.sessions == 1 ? ' session' : ' sessions'));
+          if (pkg.weeks) features.push(pkg.weeks + (pkg.weeks == 1 ? ' week' : ' weeks'));
           if (pkg.description) features.push(pkg.description);
           
           return '<div class="relative bg-harvest-surface border border-harvest-border rounded-xl p-6 hover:shadow-lg transition-shadow">' +
