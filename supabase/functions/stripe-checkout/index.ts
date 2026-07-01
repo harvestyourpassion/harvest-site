@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     const { data: pkg } = await supa.from("packages").select("*").eq("id", package_id).maybeSingle();
     if (!pkg) throw new Error("Package not found");
 
-    const key = Deno.env.get("STRIPE_SECRET_KEY")!;
+    const key = (Deno.env.get("STRIPE_SECRET_KEY") ?? "").trim();
     const form = new URLSearchParams();
     form.set("mode", "payment");
     form.set("success_url", success_url ?? "https://harvest-your-passion.netlify.app/coaching/?paid=1");

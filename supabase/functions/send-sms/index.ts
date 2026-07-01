@@ -29,9 +29,9 @@ Deno.serve(async (req) => {
     }
 
     const { to, body } = await req.json();
-    const sid = Deno.env.get("TWILIO_ACCOUNT_SID")!;
-    const tok = Deno.env.get("TWILIO_AUTH_TOKEN")!;
-    const from = Deno.env.get("TWILIO_PHONE_NUMBER")!;
+    const sid = (Deno.env.get("TWILIO_ACCOUNT_SID") ?? "").trim();
+    const tok = (Deno.env.get("TWILIO_AUTH_TOKEN") ?? "").trim();
+    const from = (Deno.env.get("TWILIO_PHONE_NUMBER") ?? "").trim();
     const form = new URLSearchParams({ To: to, From: from, Body: body });
     const res = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,

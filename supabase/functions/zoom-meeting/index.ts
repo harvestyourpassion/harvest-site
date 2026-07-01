@@ -15,9 +15,9 @@ const cors = {
 };
 
 async function zoomToken(): Promise<string> {
-  const id = Deno.env.get("ZOOM_ACCOUNT_ID")!;
-  const cid = Deno.env.get("ZOOM_CLIENT_ID")!;
-  const secret = Deno.env.get("ZOOM_CLIENT_SECRET")!;
+  const id = (Deno.env.get("ZOOM_ACCOUNT_ID") ?? "").trim();
+  const cid = (Deno.env.get("ZOOM_CLIENT_ID") ?? "").trim();
+  const secret = (Deno.env.get("ZOOM_CLIENT_SECRET") ?? "").trim();
   const basic = btoa(`${cid}:${secret}`);
   const res = await fetch(
     `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${id}`,

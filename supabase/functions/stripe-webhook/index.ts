@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
   try {
     const sig = req.headers.get("stripe-signature") ?? "";
     const payload = await req.text();
-    const secret = Deno.env.get("STRIPE_WEBHOOK_SECRET")!;
+    const secret = (Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "").trim();
     if (!await verify(payload, sig, secret)) {
       return new Response("bad signature", { status: 400 });
     }
