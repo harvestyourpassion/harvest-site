@@ -82,6 +82,8 @@
     if (view === 'session') return renderSession(m, arg);
     if (view === 'sessions') return renderSessions(m);
     if (view === 'templates') return renderTemplates(m);
+    if (view === 'plans') return renderPlans(m);
+    if (view === 'plan') return renderPlan(m, arg);
     if (view === 'packages') return renderPackages(m);
     if (view === 'billing') return renderBilling(m);
     if (view === 'surveys') return renderSurveys(m);
@@ -458,6 +460,94 @@
           });
         });
       }
+    });
+  }
+
+  // ---------- Session Plans ----------
+  function renderPlans(m) {
+    Promise.all([
+      sb.from('session_plans').select('*, clients(name,email)').eq('coach_id', coach ? coach.id : '0').order('created_at', { ascending: false }),
+      sb.from('clients').select('id,name,email').eq('coach_id', coach ? coach.id : '0')
+    ]).then(function (res) {
+      var plans = res[0].data || [];
+      window._gClients = res[1].data || [];
+      var html = head('Session Plans', 'Per-client development tracks');
+      html += '<div style="margin-bottom:16px">' + H.button({ label: '+ New Plan', id: 'g-new-plan' }) + '</div>';
+      if (!plans.length) html += H.card({ body: H.empty({ icon: '🧭', title: 'No plans yet', description: 'Build a topic-by-topic development plan for a client.' }) });
+      else {
+        html += '<div style="display:flex;flex-direction:column;gap:10px">';
+        plans.forEach(function (p) {
+          var who = (p.clients && (p.clients.name || p.clients.email)) || 'Client';
+          html += '<div class="h-card" data-plan="' + H.esc(p.id) + '" style="cursor:pointer"><div class="h-row" style="justify-content:space-between"><strong>' + H.esc(p.title) + '</strong>' + H.badge(p.status || 'active', p.status === 'completed' ? 'done' : 'active') + '</div><div class="h-muted" style="font-size:12px">' + H.esc(who) + '</div></div>';
+        });
+        html += '</div>';
+      }
+      m.innerHTML = html;
+      document.getElementById('g-new-plan').addEventListener('click', newPlanModal);
+      m.querySelectorAll('[data-plan]').forEach(function (el) { el.addEventListener('click', function () { show('plan', el.getAttribute('data-plan')); }); });
+    });
+  }
+
+  function newPlanModal() {
+    var clients = window._gClients || [];
+    if (!clients.length) { H.toast('Add a client first', 'info'); return; }
+    var opts = clients.map(function (c) { return { value: c.id, label: c.name || c.email }; });
+    H.modal({
+      title: 'New Session Plan',
+      body: H.input({ id: 'pl-client', label: 'Client', type: 'select', options: opts }) +
+        H.input({ id: 'pl-title', label: 'Title', placeholder: 'e.g. Leadership Development Track' }) +
+        H.input({ id: 'pl-desc', label: 'Description', type: 'textarea' }),
+      actions: [{ label: 'Cancel', variant: 'ghost' }, { label: 'Create', variant: 'primary' }],
+      onMount: function (ctl) {
+        ctl.el.querySelector('.h-btn--ghost').addEventListener('click', ctl.close);
+        ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
+          var title = document.getElementById('pl-title').value.trim();
+          if (!title) { H.toast('Title required', 'error'); return; }
+          sb.from('session_plans').insert({ coach_id: coach.id, client_id: document.getElementById('pl-client').value, title: title, description: document.getElementById('pl-desc').value, status: 'active' })
+            .select('id').maybeSingle().then(function (r) {
+              if (r.error) H.toast('Failed: ' + r.error.message, 'error');
+              else { H.toast('Plan created', 'success'); ctl.close(); show('plan', r.data.id); }
+            });
+        });
+      }
+    });
+  }
+
+  function renderPlan(m, planId) {
+    Promise.all([
+      sb.from('session_plans').select('*, clients(name,email)').eq('id', planId).maybeSingle(),
+      sb.from('session_plan_topics').select('*').eq('plan_id', planId).order('order_index')
+    ]).then(function (res) {
+      var plan = res[0].data, topics = res[1].data || [];
+      if (!plan) { m.innerHTML = H.error({ title: 'Plan not found' }); return; }
+      var who = (plan.clients && (plan.clients.name || plan.clients.email)) || 'Client';
+      var html = '<a class="h-muted" style="cursor:pointer;font-size:13px" id="g-p-back">&larr; Session Plans</a>';
+      html += head(plan.title, who);
+      if (plan.description) html += H.card({ body: H.esc(plan.description) });
+      html += '<div class="g-section-title">Topics (' + topics.length + ')</div>';
+      if (topics.length) {
+        html += '<div style="display:flex;flex-direction:column;gap:8px">';
+        topics.forEach(function (t) {
+          var done = t.status === 'completed';
+          html += '<div class="h-card h-row" style="justify-content:space-between"><label class="h-row" style="gap:8px;cursor:pointer"><input type="checkbox" class="g-topic" data-id="' + t.id + '" ' + (done ? 'checked' : '') + '><span' + (done ? ' style="text-decoration:line-through;opacity:.6"' : '') + '>' + H.esc(t.topic) + '</span></label></div>';
+        });
+        html += '</div>';
+      }
+      html += '<div style="margin-top:12px">' + H.input({ id: 'g-topic-new', label: 'Add a topic', placeholder: 'Topic' }) + H.button({ label: 'Add Topic', variant: 'secondary', id: 'g-topic-add' }) + '</div>';
+      m.innerHTML = html;
+      document.getElementById('g-p-back').addEventListener('click', function () { show('plans'); });
+      document.getElementById('g-topic-add').addEventListener('click', function () {
+        var topic = document.getElementById('g-topic-new').value.trim();
+        if (!topic) return;
+        sb.from('session_plan_topics').insert({ plan_id: planId, topic: topic, order_index: topics.length, status: 'pending' }).then(function (r) {
+          if (r.error) H.toast('Failed: ' + r.error.message, 'error'); else show('plan', planId);
+        });
+      });
+      m.querySelectorAll('.g-topic').forEach(function (cb) {
+        cb.addEventListener('change', function () {
+          sb.from('session_plan_topics').update({ status: cb.checked ? 'completed' : 'pending' }).eq('id', cb.getAttribute('data-id')).then(function () { show('plan', planId); });
+        });
+      });
     });
   }
 
