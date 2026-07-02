@@ -91,6 +91,7 @@
     if (view === 'emails') return renderEmails(m);
     if (view === 'insights') return renderInsights(m);
     if (view === 'resources') return renderResources(m);
+    if (view === 'users') return renderUsers(m);
     if (view === 'settings') return renderSettings(m);
   }
   w.GardenNav = show;
@@ -823,6 +824,36 @@
         html += '</div>';
       }
       m.innerHTML = html;
+    });
+  }
+
+  // ---------- Users (admin) ----------
+  var ROLES = ['user', 'client', 'coach', 'admin'];
+  function renderUsers(m) {
+    sb.from('profiles').select('id,email,name,role,created_at').order('created_at', { ascending: false }).then(function (res) {
+      var users = res.data || [];
+      var html = head('Users', users.length + ' accounts');
+      html += '<div class="h-muted" style="font-size:12px;margin-bottom:12px">Change a role below. Deleting accounts is done from the Supabase dashboard (Auth) — role changes here take effect immediately.</div>';
+      html += '<div style="display:flex;flex-direction:column;gap:8px">';
+      users.forEach(function (u) {
+        var opts = ROLES.map(function (r) { return '<option value="' + r + '"' + (u.role === r ? ' selected' : '') + '>' + r + '</option>'; }).join('');
+        html += '<div class="h-card h-row" style="justify-content:space-between">' +
+          '<span><span style="font-weight:600">' + H.esc(u.name || u.email || '—') + '</span><div class="h-muted" style="font-size:12px">' + H.esc(u.email || '') + '</div></span>' +
+          '<select class="h-select g-role" data-id="' + H.esc(u.id) + '" style="width:auto;min-height:34px">' + opts + '</select></div>';
+      });
+      html += '</div>';
+      m.innerHTML = html;
+      m.querySelectorAll('.g-role').forEach(function (sel) {
+        sel.addEventListener('change', function () {
+          if (sel.getAttribute('data-id') === profile.id && sel.value !== 'admin') {
+            if (!confirm('Remove your OWN admin access? You may lose access to Garden.')) { sel.value = 'admin'; return; }
+          }
+          sb.from('profiles').update({ role: sel.value }).eq('id', sel.getAttribute('data-id')).then(function (r) {
+            if (r.error) H.toast('Failed: ' + r.error.message, 'error');
+            else H.toast('Role updated to ' + sel.value, 'success');
+          });
+        });
+      });
     });
   }
 
