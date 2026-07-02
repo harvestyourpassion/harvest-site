@@ -1202,7 +1202,7 @@
       .then(function (res) {
         var contracts = res.data || [];
         var html = head('Contracts', 'Agreements & signatures');
-        html += '<div style="margin-bottom:16px">' + H.button({ label: '+ New Contract', id: 'g-new-contract' }) + '</div>';
+        html += '<div class="h-row" style="gap:8px;margin-bottom:16px">' + H.button({ label: '+ New Contract', id: 'g-new-contract' }) + H.button({ label: 'Manage Templates', variant: 'secondary', id: 'g-ct-templates' }) + '</div>';
         if (!contracts.length) {
           html += H.card({ body: H.empty({ icon: '📝', title: 'No contracts yet', description: 'Send an agreement to a client for signature.' }) });
         } else {
@@ -1218,19 +1218,78 @@
         }
         m.innerHTML = html;
         document.getElementById('g-new-contract').addEventListener('click', newContractModal);
+        document.getElementById('g-ct-templates').addEventListener('click', contractTemplatesModal);
         m.querySelectorAll('[data-contract]').forEach(function (el) {
           el.addEventListener('click', function () { contractActions(el.getAttribute('data-contract')); });
         });
       });
   }
 
+  // #30: contract template CRUD.
+  function contractTemplatesModal() {
+    sb.from('contract_templates').select('*').eq('coach_id', coach.id).order('name').then(function (res) {
+      var tpls = res.data || [];
+      var body = '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">';
+      if (!tpls.length) body += '<span class="h-muted">No templates yet.</span>';
+      tpls.forEach(function (t) {
+        body += '<div class="h-card h-row" style="justify-content:space-between"><span data-tpl="' + H.esc(t.id) + '" style="cursor:pointer;flex:1">' + H.esc(t.name) + '</span>' +
+          '<button class="h-btn h-btn--ghost" data-tpl-del="' + H.esc(t.id) + '" style="min-height:28px;padding:0 8px">Delete</button></div>';
+      });
+      body += '</div>' + H.button({ label: '+ New Template', id: 'ct-tpl-new', variant: 'secondary' });
+      var modal = H.modal({ title: 'Contract Templates', body: body, actions: [{ label: 'Close', variant: 'ghost' }] });
+      modal.el.querySelector('.h-btn--ghost').addEventListener('click', modal.close);
+      modal.el.querySelector('#ct-tpl-new').addEventListener('click', function () { modal.close(); editTemplateModal(null); });
+      modal.el.querySelectorAll('[data-tpl]').forEach(function (el) {
+        var t = tpls.find(function (x) { return x.id === el.getAttribute('data-tpl'); });
+        el.addEventListener('click', function () { modal.close(); editTemplateModal(t); });
+      });
+      modal.el.querySelectorAll('[data-tpl-del]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          sb.from('contract_templates').delete().eq('id', b.getAttribute('data-tpl-del')).then(function () { H.toast('Deleted', 'info'); modal.close(); contractTemplatesModal(); });
+        });
+      });
+    });
+  }
+
+  function editTemplateModal(t) {
+    t = t || {};
+    H.modal({
+      title: t.id ? 'Edit Template' : 'New Template',
+      body: H.input({ id: 'tpl-name', label: 'Name', value: t.name || '' }) +
+        '<div class="h-muted" style="font-size:12px;margin-bottom:6px">Variables: {client_name} {coach_name} {package_name} {package_price} {session_count} {start_date} {today_date}</div>' +
+        H.input({ id: 'tpl-body', label: 'Agreement text', type: 'textarea', value: t.body || '' }),
+      actions: [{ label: 'Cancel', variant: 'ghost' }, { label: 'Save', variant: 'primary' }],
+      onMount: function (ctl) {
+        ctl.el.querySelector('#tpl-body').style.minHeight = '220px';
+        ctl.el.querySelector('.h-btn--ghost').addEventListener('click', ctl.close);
+        ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
+          var name = document.getElementById('tpl-name').value.trim();
+          if (!name) { H.toast('Name required', 'error'); return; }
+          var row = { coach_id: coach.id, name: name, body: document.getElementById('tpl-body').value };
+          var op = t.id ? sb.from('contract_templates').update(row).eq('id', t.id) : sb.from('contract_templates').insert(row);
+          op.then(function (r) { if (r.error) H.toast('Failed: ' + r.error.message, 'error'); else { H.toast('Saved', 'success'); ctl.close(); } });
+        });
+      }
+    });
+  }
+
+  function renderTemplateVars(body, ctx) {
+    return (body || '').replace(/\{(\w+)\}/g, function (m, k) { return ctx[k] != null ? ctx[k] : m; });
+  }
+
   function newContractModal() {
-    sb.from('clients').select('id,name,email').eq('coach_id', coach.id).then(function (res) {
-      var clients = res.data || [];
+    Promise.all([
+      sb.from('clients').select('id,name,email,packages(name,price,session_count)').eq('coach_id', coach.id),
+      sb.from('contract_templates').select('id,name,body').eq('coach_id', coach.id).order('name')
+    ]).then(function (res) {
+      var clients = res[0].data || [];
+      var tpls = res[1].data || [];
       var opts = clients.map(function (c) { return { value: c.id, label: c.name || c.email }; });
+      var tplOpts = [{ value: '', label: '— None (default terms) —' }].concat(tpls.map(function (t) { return { value: t.id, label: t.name }; }));
       H.modal({
         title: 'New Contract',
         body: (opts.length ? H.input({ id: 'ct-client', label: 'Client', type: 'select', options: opts }) : '<p class="h-muted">Add a client first.</p>') +
+          H.input({ id: 'ct-tpl', label: 'Template', type: 'select', options: tplOpts }) +
           H.input({ id: 'ct-url', label: 'Document URL (optional)', placeholder: 'https://…' }) +
           H.input({ id: 'ct-expires', label: 'Expires', type: 'date' }),
         actions: [{ label: 'Cancel', variant: 'ghost' }, { label: 'Create', variant: 'primary' }],
@@ -1238,9 +1297,23 @@
           ctl.el.querySelector('.h-btn--ghost').addEventListener('click', ctl.close);
           ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
             if (!opts.length) { ctl.close(); return; }
+            var clientId = document.getElementById('ct-client').value;
+            var client = clients.find(function (c) { return c.id === clientId; }) || {};
+            var tpl = tpls.find(function (t) { return t.id === document.getElementById('ct-tpl').value; });
+            var content = null;
+            if (tpl) {
+              content = renderTemplateVars(tpl.body, {
+                client_name: client.name || client.email || 'Client', coach_name: coach.name,
+                package_name: (client.packages && client.packages.name) || '',
+                package_price: (client.packages && client.packages.price) != null ? '$' + client.packages.price : '',
+                session_count: (client.packages && client.packages.session_count) || '',
+                start_date: new Date().toLocaleDateString(), today_date: new Date().toLocaleDateString()
+              });
+            }
             var exp = document.getElementById('ct-expires').value;
             sb.from('contracts').insert({
-              coach_id: coach.id, client_id: document.getElementById('ct-client').value,
+              coach_id: coach.id, client_id: clientId,
+              template_id: tpl ? tpl.id : null, content: content,
               template_url: document.getElementById('ct-url').value.trim() || null,
               status: 'pending', expires_at: exp ? new Date(exp).toISOString() : null
             }).then(function (r) {
@@ -1261,7 +1334,7 @@
       var sig = c.signature_data || {};
       var body = '<div class="h-muted" style="font-size:12px;margin-bottom:8px">To: ' + H.esc(who) + ' · Status: ' + H.esc(c.status || 'pending') + (c.signed_at ? ' · Signed ' + fmtDate(c.signed_at) : '') + '</div>' +
         (c.template_url ? '<p style="margin-bottom:8px"><a href="' + H.esc(c.template_url) + '" target="_blank" style="color:var(--accent-blue)">Open uploaded document</a></p>' : '') +
-        '<div style="max-height:220px;overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:13px;line-height:1.5;color:#cbd5e1">' + H.esc(CONTRACT_TERMS) + '</div>' +
+        '<div style="max-height:220px;overflow:auto;white-space:pre-wrap;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:13px;line-height:1.5;color:#cbd5e1">' + H.esc(c.content || CONTRACT_TERMS) + '</div>' +
         (sig.name ? '<p style="margin-top:8px;font-size:13px">Signed by <strong>' + H.esc(sig.name) + '</strong> on ' + fmtDate(sig.signed_at) + '</p>' : '<p class="h-muted" style="margin-top:8px;font-size:13px">Not yet signed. This is what the client sees before signing.</p>');
       H.modal({
       title: 'Contract — ' + who,

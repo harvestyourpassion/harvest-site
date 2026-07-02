@@ -83,11 +83,12 @@
       else contracts.forEach(function(c){
         html += '<div class="h-card" data-contract="'+c.id+'">' +
           '<div style="font-weight:600;margin-bottom:6px">Coaching Agreement</div>' +
-          '<div style="max-height:200px;overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:13px;line-height:1.5;color:#cbd5e1;margin-bottom:10px">' +
+          '<div style="max-height:220px;overflow:auto;white-space:pre-wrap;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:13px;line-height:1.5;color:#cbd5e1;margin-bottom:10px">' +
             (c.template_url
-              ? 'Please review the full agreement: <a href="'+esc(c.template_url)+'" target="_blank" style="color:var(--accent-blue)">open document</a>.<br><br>'
+              ? 'Full document: <a href="'+esc(c.template_url)+'" target="_blank" style="color:var(--accent-blue)">open</a>\n\n'
               : '') +
-            'This Coaching Agreement is between you and Leandro Castillo-Monroy (Harvest Your Passion LLC). By signing, you agree to attend scheduled sessions, engage in good faith, and understand that coaching is not therapy, medical, or financial advice. Sessions are confidential. Payment is non-refundable once coaching has begun. Either party may end the engagement with written notice.' +
+            (c.content ||
+             'This Coaching Agreement is between you and Leandro Castillo-Monroy (Harvest Your Passion LLC). By signing, you agree to attend scheduled sessions, engage in good faith, and understand that coaching is not therapy, medical, or financial advice. Sessions are confidential. Payment is non-refundable once coaching has begun. Either party may end the engagement with written notice.') +
           '</div>' +
           H.input({ id:'sig-'+c.id, label:'Type your full name to sign', placeholder:'Your full name' }) +
           H.button({ label:'Sign agreement', id:'signbtn-'+c.id }) + '</div>';
