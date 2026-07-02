@@ -43,6 +43,7 @@ function injectHarvestNav() {
             (section && section !== 'home' ? '<span style="color:#64748b;margin:0 0.3rem;font-weight:300;">&mdash;</span><span style="font-size:1rem;font-weight:700;color:' + sectionColor + ';">' + sectionLabel + '</span>' : '') +
         '</a>' +
         '<div style="display:flex;align-items:center;gap:1.25rem;font-size:0.8rem;">' +
+            '<span id="harvest-nav-sections" style="display:flex;align-items:center;gap:1.25rem;">' +
             '<a href="/" style="text-decoration:none;color:' + lc('home') + ';">Home</a>' +
             '<a id="hnav-coaching" href="/coaching/" style="text-decoration:none;color:' + lc('coaching') + ';">Coaching</a>' +
             '<a id="hnav-roots" href="/roots/" style="text-decoration:none;color:' + lc('roots') + ';">Roots</a>' +
@@ -52,6 +53,7 @@ function injectHarvestNav() {
             '<a id="hnav-store" href="/store/" style="text-decoration:none;color:' + lc('store') + ';">Store</a>' +
             '<a id="hnav-about" href="/about/" style="text-decoration:none;color:' + lc('about') + ';">About</a>' +
             '<a id="hnav-contact" href="/contact/" style="text-decoration:none;color:' + lc('contact') + ';">Contact</a>' +
+            '</span>' +
             '<span id="harvest-nav-admin"></span>' +
             '<span id="harvest-nav-client"></span>' +
             '<span id="harvest-nav-auth" style="position:relative;"></span>' +
@@ -69,11 +71,18 @@ function injectHarvestNav() {
         '<style>' +
         '#harvest-global-nav a:hover{color:#4ade80!important}' +
         '#harvest-bottomnav{display:none;}' +
+        // #56: prevent any element from forcing the page wider than the viewport.
+        'html,body{max-width:100%;overflow-x:hidden;}' +
         '@media(max-width:640px){' +
+          // #55/#57: hide the desktop section links + admin links on mobile
+          // (the bottom nav handles navigation); keep the logo + Log In/profile.
+          '#harvest-nav-sections{display:none!important;}' +
+          '#harvest-nav-admin{display:none!important;}' +
           '#harvest-bottomnav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:9998;background:#1e293b;border-top:1px solid #475569;justify-content:space-around;align-items:center;height:58px;}' +
           '#harvest-bottomnav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex:1;min-height:44px;color:#94a3b8;text-decoration:none;font-size:0.62rem;}' +
           '#harvest-bottomnav a span:first-child{font-size:1.15rem;}' +
           'body{padding-bottom:62px;}' +
+          '.harvest-container,.max-w-6xl,.max-w-4xl,.max-w-3xl,.max-w-7xl{max-width:100%!important;}' +
         '}' +
         ':root{--harvest-nav-max-width:1280px;--harvest-nav-padding:1rem;}' +
         '.harvest-container{max-width:var(--harvest-nav-max-width);margin:0 auto;padding:0 var(--harvest-nav-padding);}' +

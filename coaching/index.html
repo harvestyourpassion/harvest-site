@@ -674,10 +674,25 @@
         if (!sb || !window.getUser) { setTimeout(gateSubnav, 300); return; }
         window.getUser().then(function (user) {
           if (!user) return;
-          sb.from('clients').select('id,status,package_id').eq('user_id', user.id)
+          sb.from('clients').select('id,status,package_id,sessions_total,sessions_used,packages(name,session_count)').eq('user_id', user.id)
             .in('status', ['active', 'paused']).then(function (res) {
-              var active = (res.data || []).some(function (c) { return c.package_id; });
-              if (active) { var el = document.getElementById('coaching-subnav'); if (el) el.style.display = ''; }
+              var c = (res.data || []).filter(function (x) { return x.package_id; })[0];
+              if (!c) return;
+              var el = document.getElementById('coaching-subnav'); if (el) el.style.display = '';
+              // #7: active-package banner above the package list.
+              var pkgName = (c.packages && c.packages.name) || 'coaching package';
+              var total = c.sessions_total != null ? c.sessions_total : (c.packages && c.packages.session_count);
+              var remain = (total != null) ? Math.max(0, total - (c.sessions_used || 0)) : null;
+              var main = document.querySelector('main');
+              if (main && !document.getElementById('active-pkg-banner')) {
+                var b = document.createElement('div');
+                b.id = 'active-pkg-banner';
+                b.style.cssText = 'background:rgba(34,197,94,.12);border:1px solid #22c55e;border-radius:10px;padding:12px 16px;margin-bottom:20px;color:#e2e8f0;font-size:0.95rem';
+                b.innerHTML = 'You have an active <strong>' + pkgName + '</strong>' +
+                  (remain != null ? ' — <strong>' + remain + '</strong> session' + (remain === 1 ? '' : 's') + ' remaining.' : '.') +
+                  ' <a href="/coaching/coach.html" style="color:#4ade80;font-weight:600">Go to My Coach →</a>';
+                main.insertBefore(b, main.firstChild);
+              }
             });
         });
       }
