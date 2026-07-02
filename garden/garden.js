@@ -1122,19 +1122,31 @@
       body: H.input({ id: 'sv-name', label: 'Name', placeholder: 'Intake Survey' }) +
         H.input({ id: 'sv-desc', label: 'Description', type: 'textarea' }) +
         H.input({ id: 'sv-trigger', label: 'When to send', type: 'select', options: [
-          { value: 'manual', label: 'Manually' }, { value: 'on_signup', label: 'On signup' },
-          { value: 'pre_session', label: 'Before session' }, { value: 'end_of_package', label: 'End of package' }
-        ], value: 'manual' }),
+          { value: 'manual', label: 'Manually' }, { value: 'on_signup', label: 'On signup (intake)' },
+          { value: 'after_session', label: 'After session number…' },
+          { value: 'on_date', label: 'On a specific date' },
+          { value: 'end_of_package', label: 'End of package' }
+        ], value: 'manual' }) +
+        H.input({ id: 'sv-offset', label: 'Session number (for “after session”)', type: 'number', placeholder: 'e.g. 4' }) +
+        H.input({ id: 'sv-date', label: 'Date (for “on a specific date”)', type: 'date' }) +
+        H.input({ id: 'sv-channel', label: 'Notify via', type: 'select', options: [
+          { value: 'in_app', label: 'In-app' }, { value: 'email', label: 'Email' }, { value: 'sms', label: 'SMS' }, { value: 'email_sms', label: 'Email + SMS' }
+        ], value: 'in_app' }),
       actions: [{ label: 'Cancel', variant: 'ghost' }, { label: 'Create', variant: 'primary' }],
       onMount: function (ctl) {
         ctl.el.querySelector('.h-btn--ghost').addEventListener('click', ctl.close);
         ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
           var name = document.getElementById('sv-name').value.trim();
           if (!name) { H.toast('Name required', 'error'); return; }
+          var offv = document.getElementById('sv-offset').value;
+          var datev = document.getElementById('sv-date').value;
           sb.from('surveys').insert({
             coach_id: coach.id, name: name,
             description: document.getElementById('sv-desc').value.trim(),
-            trigger_type: document.getElementById('sv-trigger').value
+            trigger_type: document.getElementById('sv-trigger').value,
+            trigger_offset: offv === '' ? null : parseInt(offv, 10),
+            trigger_date: datev || null,
+            notify_channel: document.getElementById('sv-channel').value
           }).then(function (res) {
             if (res.error) H.toast('Failed: ' + res.error.message, 'error');
             else { H.toast('Survey created', 'success'); ctl.close(); show('surveys'); }
@@ -1240,10 +1252,19 @@
     });
   }
 
+  var CONTRACT_TERMS = 'This Coaching Agreement is between the client and Leandro Castillo-Monroy (Harvest Your Passion LLC). By signing, the client agrees to attend scheduled sessions, engage in good faith, and understands that coaching is not therapy, medical, or financial advice. Sessions are confidential. Payment is non-refundable once coaching has begun. Either party may end the engagement with written notice.';
   function contractActions(id) {
-    H.modal({
-      title: 'Contract',
-      body: '<p class="h-muted">Update the signature status.</p>',
+    sb.from('contracts').select('*, clients(name,email)').eq('id', id).maybeSingle().then(function (res) {
+      var c = res.data || {};
+      var who = (c.clients && (c.clients.name || c.clients.email)) || 'Client';
+      var sig = c.signature_data || {};
+      var body = '<div class="h-muted" style="font-size:12px;margin-bottom:8px">To: ' + H.esc(who) + ' · Status: ' + H.esc(c.status || 'pending') + (c.signed_at ? ' · Signed ' + fmtDate(c.signed_at) : '') + '</div>' +
+        (c.template_url ? '<p style="margin-bottom:8px"><a href="' + H.esc(c.template_url) + '" target="_blank" style="color:var(--accent-blue)">Open uploaded document</a></p>' : '') +
+        '<div style="max-height:220px;overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:13px;line-height:1.5;color:#cbd5e1">' + H.esc(CONTRACT_TERMS) + '</div>' +
+        (sig.name ? '<p style="margin-top:8px;font-size:13px">Signed by <strong>' + H.esc(sig.name) + '</strong> on ' + fmtDate(sig.signed_at) + '</p>' : '<p class="h-muted" style="margin-top:8px;font-size:13px">Not yet signed. This is what the client sees before signing.</p>');
+      H.modal({
+      title: 'Contract — ' + who,
+      body: body,
       actions: [
         { label: 'Mark Signed', variant: 'primary' },
         { label: 'Mark Expired', variant: 'destructive' },
@@ -1258,6 +1279,7 @@
           sb.from('contracts').update({ status: 'expired' }).eq('id', id).then(function () { H.toast('Marked expired', 'info'); ctl.close(); show('contracts'); });
         });
       }
+      });
     });
   }
 
@@ -1295,17 +1317,30 @@
       title: t.id ? 'Edit Template' : 'New Template',
       body: H.input({ id: 'em-name', label: 'Name', value: t.name || '' }) +
         H.input({ id: 'em-subject', label: 'Subject', value: t.subject || '' }) +
-        H.input({ id: 'em-body', label: 'Body', type: 'textarea', value: t.body || '' }) +
-        H.input({ id: 'em-trigger', label: 'Trigger', type: 'select', options: ['manual', 'on_booking', 'reminder_48h', 'reminder_24h', 'reminder_1h', 'post_session'], value: t.trigger_type || 'manual' }),
+        '<label class="h-label">Body</label>' +
+        '<div class="h-row" style="gap:6px;margin-bottom:6px;flex-wrap:wrap">' +
+          '<button type="button" id="em-b" class="h-btn h-btn--secondary" style="min-height:30px;padding:0 10px;font-weight:700">B</button>' +
+          '<button type="button" id="em-i" class="h-btn h-btn--secondary" style="min-height:30px;padding:0 10px;font-style:italic">I</button>' +
+          '<select id="em-var" class="h-select" style="width:auto;min-height:30px"><option value="">Insert variable…</option>' +
+            EMAIL_VARS.map(function (v) { return '<option value="' + v + '">' + v + '</option>'; }).join('') + '</select>' +
+        '</div>' +
+        '<div id="em-body" contenteditable="true" style="min-height:120px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px;font-size:14px;line-height:1.5">' + (t.body || '') + '</div>' +
+        '<div style="margin-top:10px">' + H.input({ id: 'em-trigger', label: 'Trigger', type: 'select', options: ['manual', 'on_booking', 'reminder_48h', 'reminder_24h', 'reminder_1h', 'post_session'], value: t.trigger_type || 'manual' }) + '</div>',
       actions: (t.id ? [{ label: 'Delete', variant: 'destructive' }] : []).concat([{ label: 'Save', variant: 'primary' }]),
       onMount: function (ctl) {
+        var ed = ctl.el.querySelector('#em-body');
+        ctl.el.querySelector('#em-b').addEventListener('click', function () { ed.focus(); document.execCommand('bold'); });
+        ctl.el.querySelector('#em-i').addEventListener('click', function () { ed.focus(); document.execCommand('italic'); });
+        ctl.el.querySelector('#em-var').addEventListener('change', function () {
+          if (!this.value) return; ed.focus(); document.execCommand('insertText', false, this.value); this.value = '';
+        });
         if (t.id) ctl.el.querySelector('.h-btn--destructive').addEventListener('click', function () {
           sb.from('email_templates').delete().eq('id', t.id).then(function () { H.toast('Deleted', 'info'); ctl.close(); show('emails'); });
         });
         ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
           var row = {
             coach_id: coach.id, name: document.getElementById('em-name').value.trim(),
-            subject: document.getElementById('em-subject').value, body: document.getElementById('em-body').value,
+            subject: document.getElementById('em-subject').value, body: ctl.el.querySelector('#em-body').innerHTML,
             trigger_type: document.getElementById('em-trigger').value, variables: EMAIL_VARS
           };
           if (!row.name) { H.toast('Name required', 'error'); return; }
