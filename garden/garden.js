@@ -711,6 +711,13 @@
 
   function packageModal(p) {
     p = p || {};
+    sb.from('contract_templates').select('id,name').eq('coach_id', coach.id).order('name').then(function (tr) {
+      var tpls = tr.data || [];
+      var tplOpts = [{ value: '', label: '— None —' }].concat(tpls.map(function (t) { return { value: t.id, label: t.name }; }));
+      openPackageModal(p, tplOpts);
+    });
+  }
+  function openPackageModal(p, tplOpts) {
     H.modal({
       title: p.id ? 'Edit Package' : 'New Package',
       body: H.input({ id: 'pk-name', label: 'Name', value: p.name || '' }) +
@@ -720,6 +727,7 @@
         H.input({ id: 'pk-sessions', label: 'Session count', type: 'number', value: p.session_count != null ? p.session_count : '' }) +
         H.input({ id: 'pk-weeks', label: 'Duration (weeks)', type: 'number', value: p.duration_weeks != null ? p.duration_weeks : '' }) +
         H.input({ id: 'pk-msg', label: 'Message limit (blank = unlimited)', type: 'number', value: p.message_limit != null ? p.message_limit : '' }) +
+        H.input({ id: 'pk-contract', label: 'Default contract template', type: 'select', options: tplOpts, value: p.default_contract_template_id || '' }) +
         '<label class="h-row" style="gap:8px;margin:8px 0"><input type="checkbox" id="pk-active" ' + (p.is_active === false ? '' : 'checked') + '> Active (sellable)</label>',
       actions: (p.id ? [{ label: 'Delete', variant: 'destructive' }] : []).concat([{ label: 'Save', variant: 'primary' }]),
       onMount: function (ctl) {
@@ -736,7 +744,9 @@
           var row = {
             coach_id: coach.id, name: name, description: document.getElementById('pk-desc').value,
             price: num('pk-price') || 0, hours: num('pk-hours'), session_count: num('pk-sessions'),
-            duration_weeks: num('pk-weeks'), message_limit: num('pk-msg'), is_active: document.getElementById('pk-active').checked
+            duration_weeks: num('pk-weeks'), message_limit: num('pk-msg'),
+            default_contract_template_id: document.getElementById('pk-contract').value || null,
+            is_active: document.getElementById('pk-active').checked
           };
           var op = p.id ? sb.from('packages').update(row).eq('id', p.id) : sb.from('packages').insert(row);
           op.then(function (r) {

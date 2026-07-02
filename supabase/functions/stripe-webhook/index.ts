@@ -87,10 +87,31 @@ Deno.serve(async (req) => {
           description: "Payment received for " + name + " — onboarding started.",
         });
 
-        // 3) Contract to sign (14-day expiry).
+        // 3) Contract to sign (14-day expiry). If the package has a default
+        // contract template, render it with the client's details (#5).
         const expires = new Date(Date.now() + 14 * 864e5).toISOString();
+        let contractContent: string | null = null;
+        let templateId: string | null = null;
+        if (pkgId) {
+          const { data: pkg } = await supa.from("packages")
+            .select("name, price, session_count, default_contract_template_id").eq("id", pkgId).maybeSingle();
+          if (pkg?.default_contract_template_id) {
+            const { data: tpl } = await supa.from("contract_templates").select("id, body").eq("id", pkg.default_contract_template_id).maybeSingle();
+            if (tpl?.body) {
+              templateId = tpl.id;
+              const today = new Date().toLocaleDateString();
+              const vars: Record<string, string> = {
+                client_name: name ?? "Client", client_email: email ?? "", coach_name: "Leandro Castillo-Monroy",
+                package_name: pkg.name ?? "", package_price: pkg.price != null ? "$" + pkg.price : "",
+                session_count: String(pkg.session_count ?? ""), start_date: today, today_date: today,
+              };
+              contractContent = tpl.body.replace(/\{(\w+)\}/g, (m: string, k: string) => (k in vars ? vars[k] : m));
+            }
+          }
+        }
         await supa.from("contracts").insert({
           coach_id: coachId, client_id: clientId, status: "pending", expires_at: expires,
+          template_id: templateId, content: contractContent,
         });
       }
 
