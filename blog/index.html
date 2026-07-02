@@ -42,9 +42,12 @@
       sb.from('content_items').select('*').eq('id', id).eq('is_public', true).maybeSingle().then(function(res){
         var p = res.data;
         if (!p){ root.innerHTML = '<a class="b-back" href="/blog/">&larr; Blog</a>' + H.error({ title:'Post not found' }); return; }
+        var pv = p.platform_versions || {};
+        var cat = (p.related_principles && p.related_principles[0]) || '';
         root.innerHTML = '<a class="b-back" href="/blog/">&larr; Blog</a>' +
           '<h1 class="b-h1" style="margin-top:12px">' + H.esc(p.title) + '</h1>' +
-          '<p class="b-sub">' + fmt(p.updated_at) + ' · ' + H.esc(p.stage) + '</p>' +
+          '<p class="b-sub">' + fmt(p.created_at || p.updated_at) + (cat ? ' · ' + H.esc(cat) : '') + '</p>' +
+          (pv.hero_image ? '<img src="' + H.esc(pv.hero_image) + '" alt="" style="width:100%;border-radius:12px;margin-bottom:18px" loading="lazy">' : '') +
           '<div class="b-body">' + H.esc(p.body || '') + '</div>';
       });
       return;
@@ -56,9 +59,10 @@
         html += H.empty({ icon:'📚', title:'No articles yet', description:'New writing will appear here soon. Meanwhile, try Roots free.', cta:{ label:'Try Roots', href:'/roots/' } });
       } else {
         posts.forEach(function(p){
-          var excerpt = (p.body||'').slice(0,160);
+          var excerpt = (p.body||'').replace(/\n+/g,' ').slice(0,160);
+          var cat = (p.related_principles && p.related_principles[0]) || '';
           html += '<div class="b-post" data-id="'+p.id+'"><h2>'+H.esc(p.title)+'</h2>'+
-            '<div class="h-muted" style="font-size:13px;margin-bottom:6px">'+fmt(p.updated_at)+'</div>'+
+            '<div class="h-muted" style="font-size:13px;margin-bottom:6px">'+fmt(p.created_at || p.updated_at)+(cat?' · '+H.esc(cat):'')+'</div>'+
             '<div class="h-muted">'+H.esc(excerpt)+(p.body&&p.body.length>160?'…':'')+'</div></div>';
         });
       }
