@@ -48,11 +48,15 @@
     Promise.all([
       sb.from('sessions').select('scheduled_at,status,zoom_link').eq('client_id', client.id).gte('scheduled_at', new Date().toISOString()).order('scheduled_at').limit(5),
       sb.from('shared_items').select('reference_id,message,created_at').eq('to_user_id', user.id).eq('type','resource').order('created_at',{ascending:false}),
-      sb.from('session_plans').select('title,description,status,session_plan_topics(topic,status,order_index)').eq('client_id', client.id).order('created_at',{ascending:false})
+      sb.from('session_plans').select('title,description,status,session_plan_topics(topic,status,order_index)').eq('client_id', client.id).order('created_at',{ascending:false}),
+      sb.from('surveys').select('id,name').eq('coach_id', client.coach_id),
+      sb.from('survey_responses').select('survey_id').eq('client_id', client.id)
     ]).then(function(res){
       var sessions = res[0].data || [];
       var shares = res[1].data || [];
       var plans = res[2].data || [];
+      var surveys = res[3].data || [];
+      var answered = (res[4].data || []).map(function(x){ return x.survey_id; });
       var refIds = shares.map(function(s){ return s.reference_id; }).filter(Boolean);
       var resQ = refIds.length ? sb.from('resources').select('id,title,type,url').in('id', refIds) : Promise.resolve({data:[]});
       Promise.resolve(resQ).then(function(rr){
@@ -87,6 +91,15 @@
             html += H.card({ body: inner });
           });
         }
+
+        // #12: surveys (active to complete / completed).
+        html += '<div class="cc-sec">Surveys</div>';
+        if(!surveys.length){ html += H.card({ body:'<span class="h-muted">No surveys assigned.</span>' }); }
+        else surveys.forEach(function(s){
+          var done = answered.indexOf(s.id) !== -1;
+          html += H.card({ body:'<div class="h-row" style="justify-content:space-between"><span>'+H.esc(s.name)+'</span>'+
+            (done ? H.badge('Completed','done') : '<a href="/coaching/next-steps.html" style="color:var(--accent-green);font-weight:600">Complete →</a>')+'</div>' });
+        });
 
         html += '<div class="cc-sec">Shared resources</div>';
         if(!shares.length) html += H.card({ body:'<span class="h-muted">Resources your coach shares will appear here.</span>' });
