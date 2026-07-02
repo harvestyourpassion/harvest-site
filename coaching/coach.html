@@ -47,10 +47,12 @@
     var sb = window.getSb();
     Promise.all([
       sb.from('sessions').select('scheduled_at,status,zoom_link').eq('client_id', client.id).gte('scheduled_at', new Date().toISOString()).order('scheduled_at').limit(5),
-      sb.from('shared_items').select('reference_id,message,created_at').eq('to_user_id', user.id).eq('type','resource').order('created_at',{ascending:false})
+      sb.from('shared_items').select('reference_id,message,created_at').eq('to_user_id', user.id).eq('type','resource').order('created_at',{ascending:false}),
+      sb.from('session_plans').select('title,description,status,session_plan_topics(topic,status,order_index)').eq('client_id', client.id).order('created_at',{ascending:false})
     ]).then(function(res){
       var sessions = res[0].data || [];
       var shares = res[1].data || [];
+      var plans = res[2].data || [];
       var refIds = shares.map(function(s){ return s.reference_id; }).filter(Boolean);
       var resQ = refIds.length ? sb.from('resources').select('id,title,type,url').in('id', refIds) : Promise.resolve({data:[]});
       Promise.resolve(resQ).then(function(rr){
@@ -69,6 +71,22 @@
         else sessions.forEach(function(s){
           html += H.card({ body:'<div class="h-row" style="justify-content:space-between"><span>'+fmt(s.scheduled_at)+'</span>'+ (s.zoom_link?'<a href="'+H.esc(s.zoom_link)+'" style="color:var(--accent-green)">Zoom</a>':H.badge(s.status||'scheduled','active'))+'</div>' });
         });
+
+        // #16: read-only session plan(s) for the client.
+        if (plans.length) {
+          plans.forEach(function(pl){
+            var topics = (pl.session_plan_topics||[]).slice().sort(function(a,b){return (a.order_index||0)-(b.order_index||0);});
+            html += '<div class="cc-sec">Your Plan — '+H.esc(pl.title)+'</div>';
+            var inner = pl.description ? '<div class="h-muted" style="font-size:13px;margin-bottom:8px">'+H.esc(pl.description)+'</div>' : '';
+            if(topics.length){
+              inner += topics.map(function(t){
+                var done = t.status==='completed';
+                return '<div class="h-row" style="gap:8px;padding:3px 0"><span>'+(done?'✅':'⬜')+'</span><span'+(done?' style="opacity:.6"':'')+'>'+H.esc(t.topic)+'</span></div>';
+              }).join('');
+            } else inner += '<span class="h-muted">Your coach is building your plan.</span>';
+            html += H.card({ body: inner });
+          });
+        }
 
         html += '<div class="cc-sec">Shared resources</div>';
         if(!shares.length) html += H.card({ body:'<span class="h-muted">Resources your coach shares will appear here.</span>' });

@@ -326,7 +326,7 @@
         // Populate packages grid
         var grid = document.getElementById('packages-grid');
         grid.innerHTML = allPackages.map(function(pkg, i) {
-          var popular = i === 1 ? '<span class="absolute -top-3 right-4 bg-brand-warm text-white text-xs px-3 py-1 rounded-full font-medium">Most Popular</span>' : '';
+          var popular = /growth sprint/i.test(pkg.name || '') ? '<span class="absolute -top-3 right-4 bg-brand-warm text-white text-xs px-3 py-1 rounded-full font-medium">Most Popular</span>' : '';
           var features = [];
           if (pkg.hours) features.push(pkg.hours + (pkg.hours == 1 ? ' hour' : ' hours') + ' of coaching');
           if (pkg.sessions) features.push(pkg.sessions + (pkg.sessions == 1 ? ' session' : ' sessions'));
