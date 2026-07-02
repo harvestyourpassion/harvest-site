@@ -865,7 +865,8 @@
         var avail = res.data || [];
         var byDay = {};
         avail.forEach(function (a) { byDay[a.day_of_week] = a; });
-        var html = head('Settings', 'Weekly availability for booking');
+        var html = head('Settings', 'Availability, calendar, and website settings');
+        html += '<div class="g-section-title" style="margin-top:0">Availability</div>';
         html += '<div style="display:flex;flex-direction:column;gap:8px;max-width:480px">';
         for (var d = 0; d < 7; d++) {
           var a = byDay[d];

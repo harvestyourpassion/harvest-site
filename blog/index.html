@@ -37,6 +37,15 @@
     var sb = window.getSb();
     var root = document.getElementById('b-root');
     root.innerHTML = H.loading({ skeleton:true, count:3 });
+    // Old Wix URLs (/post/<slug>) redirect here as ?slug=<slug> (#52).
+    var slug = param('slug');
+    if (slug){
+      sb.from('content_items').select('id').eq('is_public', true).ilike('platform_versions->>source_url', '%/post/' + slug).limit(1).then(function(r){
+        if (r.data && r.data[0]) location.replace('/blog/?id=' + r.data[0].id);
+        else location.replace('/blog/');
+      });
+      return;
+    }
     var id = param('id');
     if (id){
       sb.from('content_items').select('*').eq('id', id).eq('is_public', true).maybeSingle().then(function(res){

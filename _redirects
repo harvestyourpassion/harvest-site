@@ -1,2 +1,6 @@
-# Netlify redirects — handle clean URLs
-# Each route has its own index.html, so no catch-all SPA redirect needed yet
+# Netlify redirects
+# Each route has its own index.html, so no catch-all SPA redirect needed.
+
+# #52 — preserve old Wix blog URLs for SEO. /post/<slug> → blog resolves the
+# slug to the migrated post (source_url is stored on each content item).
+/post/*   /blog/?slug=:splat   301
