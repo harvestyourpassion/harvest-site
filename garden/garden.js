@@ -238,7 +238,8 @@
         H.button({ label: 'Add Note', variant: 'ghost', id: 'g-c-note' }) +
         (c.user_id ? H.button({ label: '👁 View as Client', variant: 'secondary', id: 'g-c-actas' }) : '') +
         (c.status === 'prospect' ? H.button({ label: 'Convert to Client', id: 'g-c-convert' }) : '') +
-        H.button({ label: 'Manage Package', variant: 'secondary', id: 'g-c-pkg' }) + '</div>';
+        H.button({ label: 'Manage Package', variant: 'secondary', id: 'g-c-pkg' }) +
+        H.button({ label: 'Delete', variant: 'ghost', id: 'g-c-delete' }) + '</div>';
       if (c.current_focus) html += H.card({ body: '<strong>Current focus:</strong> ' + H.esc(c.current_focus) });
       if (c.goals && c.goals.length) {
         html += '<div class="g-section-title">Goals</div>' + H.card({ body: c.goals.map(function (g) { return H.badge(g, 'neutral'); }).join(' ') });
@@ -270,6 +271,14 @@
         w.location.href = '/roots/?as=' + encodeURIComponent(c.user_id) + '&asname=' + encodeURIComponent(c.name || 'Client');
       });
       document.getElementById('g-c-pkg').addEventListener('click', function () { managePackageModal(c); });
+      var del = document.getElementById('g-c-delete');
+      if (del) del.addEventListener('click', function () {
+        if (!confirm('Delete ' + (c.name || c.email || 'this client') + '? This removes their sessions, contracts, and payments too.')) return;
+        sb.from('clients').delete().eq('id', c.id).then(function (r) {
+          if (r.error) H.toast('Failed: ' + r.error.message, 'error');
+          else { H.toast('Client deleted', 'info'); show('clients'); }
+        });
+      });
       var conv = document.getElementById('g-c-convert');
       if (conv) conv.addEventListener('click', function () {
         sb.from('clients').update({ status: 'active' }).eq('id', c.id).then(function (r) {
@@ -778,7 +787,9 @@
         .reduce(function (s, p) { return s + Number(p.amount || 0); }, 0);
       var outstanding = invoices.filter(function (i) { return i.status !== 'paid'; })
         .reduce(function (s, i) { return s + Number(i.amount || 0); }, 0);
+      var testCount = payments.filter(function (p) { return p.is_test; }).length;
       var html = head('Billing', 'Payments & invoices');
+      if (testCount) html += '<div style="margin-bottom:12px">' + H.button({ label: 'Clear ' + testCount + ' test payment' + (testCount === 1 ? '' : 's'), variant: 'destructive', id: 'g-clear-test' }) + '</div>';
       html += '<div class="g-kpis">' +
         H.kpiCard({ value: fmtMoney(revenue), label: 'Revenue' }) +
         H.kpiCard({ value: fmtMoney(outstanding), label: 'Outstanding' }) +
@@ -813,7 +824,7 @@
         });
         html += '</div>';
       }
-      html += '<div class="g-section-title">Invoices</div>';
+      html += '<div class="g-section-title" id="g-bill-invoices">Invoices</div>';
       if (!invoices.length) html += H.card({ body: H.empty({ icon: '🧾', title: 'No invoices yet', description: 'Invoices appear after you bill a client or a package is purchased.' }) });
       else {
         html += '<div style="display:flex;flex-direction:column;gap:8px">';
@@ -824,6 +835,14 @@
         html += '</div>';
       }
       m.innerHTML = html;
+      var ct = document.getElementById('g-clear-test');
+      if (ct) ct.addEventListener('click', function () {
+        if (!confirm('Delete all test payments? (Does not delete clients.)')) return;
+        sb.from('payments').delete().eq('is_test', true).then(function (r) {
+          if (r.error) H.toast('Failed: ' + r.error.message, 'error');
+          else { H.toast('Test payments cleared', 'success'); show('billing'); }
+        });
+      });
     });
   }
 

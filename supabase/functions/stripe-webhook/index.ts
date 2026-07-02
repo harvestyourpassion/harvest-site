@@ -69,12 +69,14 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 1) Record the payment.
+      // 1) Record the payment. Flag admin-account purchases as test data (#8).
+      const ADMIN_EMAILS = ["harvestyourpassionllc@gmail.com", "leandro.castillo.1994@gmail.com", "leandrocastillo@harvestyourpassion.com", "tacoslosprimos99@gmail.com"];
+      const isTest = !!email && ADMIN_EMAILS.indexOf(email.toLowerCase()) !== -1;
       await supa.from("payments").insert({
         client_id: clientId, package_id: pkgId,
         amount: (s.amount_total ?? 0) / 100,
         stripe_payment_id: s.payment_intent ?? s.id,
-        status: "succeeded", paid_at: new Date().toISOString(),
+        status: "succeeded", paid_at: new Date().toISOString(), is_test: isTest,
       });
 
       // ===== Post-payment onboarding automation =====
