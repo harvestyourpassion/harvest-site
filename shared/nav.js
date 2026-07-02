@@ -263,7 +263,8 @@ function updateNavAuth() {
                     window.isCoachingClient(user.id).then(function(isClient) {
                         var clientEl = document.getElementById('harvest-nav-client');
                         if (isClient && clientEl) {
-                            clientEl.innerHTML = '<a href="/coaching/coach.html" style="text-decoration:none;color:#22c55e;font-size:0.75rem;font-weight:600;">My Coach</a>';
+                            // #13: "My Coach" now lives as a Coaching sub-tab, not in the top nav.
+                            clientEl.innerHTML = '';
                         }
                     });
                 }

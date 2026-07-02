@@ -44,6 +44,7 @@
         <div class="max-w-6xl mx-auto px-6 py-3">
             <nav class="flex items-center gap-6 overflow-x-auto" aria-label="Coaching client menu">
                 <a href="#" onclick="showPage('packages')" class="text-sm text-gray-400 hover:text-harvest-green font-medium transition-colors whitespace-nowrap" id="nav-packages">Packages</a>
+                <a href="/coaching/coach.html" class="text-sm text-gray-400 hover:text-harvest-green font-medium transition-colors whitespace-nowrap" id="nav-mycoach">My Coach</a>
                 <a href="#" onclick="showPage('schedule')" class="text-sm text-gray-400 hover:text-harvest-green font-medium transition-colors whitespace-nowrap" id="nav-schedule">Schedule</a>
                 <a href="#" onclick="showPage('sessions')" class="text-sm text-gray-400 hover:text-harvest-green font-medium transition-colors whitespace-nowrap" id="nav-sessions">My Sessions</a>
                 <a href="#" onclick="showPage('resources')" class="text-sm text-gray-400 hover:text-harvest-green font-medium transition-colors whitespace-nowrap" id="nav-resources">Resources</a>
@@ -340,7 +341,7 @@
             '<ul class="space-y-2 mb-6 text-sm text-text-gray-400">' +
             features.map(function(f) { return '<li class="flex items-center gap-2"><span class="text-harvest-green">&#x2713;</span> ' + f + '</li>'; }).join('') +
             '</ul>' +
-            '<button onclick="showPage(\'schedule\')" class="w-full py-2.5 bg-harvest-green hover:bg-harvest-green-hover text-white rounded-lg font-medium text-sm transition-colors">Book Now</button>' +
+            '<a href="/coaching/book.html?pkg=' + pkg.id + '" class="block text-center w-full py-2.5 bg-harvest-green hover:bg-harvest-green-hover text-white rounded-lg font-medium text-sm transition-colors">Book Now</a>' +
           '</div>';
         }).join('');
         
@@ -528,55 +529,36 @@
     // SESSIONS
     // =============================================
     window.loadClientSessions = function() {
-      var now = new Date().toISOString().split('T')[0];
-      
-      // Get bookings (upcoming)
-      getSb().from('bookings').select('*, packages(name)').gte('session_date', now).eq('status', 'confirmed').order('session_date', { ascending: true }).then(function(bookingsResult) {
-        var bookings = bookingsResult.data || [];
-        var upEl = document.getElementById('upcoming-sessions');
-        
-        if (bookings.length === 0) {
-          upEl.innerHTML = '<p class="text-text-gray-400 text-sm">No upcoming sessions.</p>';
-        } else {
-          upEl.innerHTML = bookings.map(function(b) {
-            var dateObj = new Date(b.session_date + 'T' + b.session_time + ':00');
-            var dateDisplay = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-            var timeDisplay = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-            var pkgName = b.packages ? b.packages.name : 'Session';
-            return '<div class="bg-harvest-surface border border-harvest-border rounded-xl p-4 flex items-center justify-between">' +
-              '<div class="flex items-center gap-4">' +
-                '<div class="text-2xl">&#x1F4C5;</div>' +
-                '<div>' +
-                  '<p class="font-medium">' + dateDisplay + ' at ' + timeDisplay + '</p>' +
-                  '<p class="text-sm text-text-gray-400">' + pkgName + ' - ' + b.duration_minutes + ' min</p>' +
-                '</div>' +
-              '</div>' +
-              '<div class="flex items-center gap-3">' +
-                '<span class="text-xs px-2 py-1 bg-harvest-green-light text-harvest-green rounded-full">' + b.status + '</span>' +
-                '<a href="#" class="text-sm text-harvest-green hover:underline">Join Zoom</a>' +
-              '</div>' +
-            '</div>';
-          }).join('');
-        }
-      });
-      
-      // Past sessions
+      var upEl = document.getElementById('upcoming-sessions');
       var pastEl = document.getElementById('past-sessions');
-      getSb().from('sessions').select('*').lt('scheduled_at', new Date().toISOString()).order('scheduled_at', { ascending: false }).limit(10).then(function(pastResult) {
-        var past = pastResult.data || [];
-        if (past.length === 0) {
-          pastEl.innerHTML = '<p class="text-text-gray-400 text-sm">No past sessions yet.</p>';
-        } else {
-          pastEl.innerHTML = past.map(function(s) {
-            var dateObj = new Date(s.scheduled_at);
-            return '<div class="bg-harvest-surface border border-harvest-border rounded-xl p-4">' +
-              '<p class="font-medium">' + dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) + '</p>' +
-              '<p class="text-sm text-text-gray-400">' + (s.duration_minutes || 60) + ' min - ' + (s.mode || 'coaching') + '</p>' +
-            '</div>';
-          }).join('');
-        }
+      upEl.innerHTML = '<p class="text-text-gray-400 text-sm">Loading…</p>';
+      window.getUser().then(function(user){
+        if (!user) { upEl.innerHTML = '<p class="text-text-gray-400 text-sm">Sign in to see your sessions.</p>'; return; }
+        // Find this user's client record(s), then read from the sessions table
+        // (Garden-created sessions live here — the old bookings table did not).
+        getSb().from('clients').select('id').eq('user_id', user.id).then(function(cr){
+          var ids = (cr.data || []).map(function(c){ return c.id; });
+          if (!ids.length) { upEl.innerHTML = '<p class="text-text-gray-400 text-sm">No sessions yet.</p>'; pastEl.innerHTML = ''; return; }
+          var nowIso = new Date().toISOString();
+          getSb().from('sessions').select('*').in('client_id', ids).neq('status','cancelled').order('scheduled_at', { ascending: true }).then(function(sr){
+            var all = sr.data || [];
+            var up = all.filter(function(s){ return s.scheduled_at >= nowIso; });
+            var past = all.filter(function(s){ return s.scheduled_at < nowIso; }).reverse();
+            upEl.innerHTML = up.length ? up.map(sessionCard).join('') : '<p class="text-text-gray-400 text-sm">No upcoming sessions.</p>';
+            pastEl.innerHTML = past.length ? past.map(sessionCard).join('') : '<p class="text-text-gray-400 text-sm">No past sessions yet.</p>';
+          });
+        });
       });
     };
+    function sessionCard(s){
+      var d = new Date(s.scheduled_at);
+      var when = d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' at ' + d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      var zoom = s.zoom_link ? '<a href="' + s.zoom_link + '" target="_blank" class="text-sm text-harvest-green hover:underline font-medium">Join Zoom</a>' : '<span class="text-xs text-gray-500">Link soon</span>';
+      return '<div class="bg-harvest-surface border border-harvest-border rounded-xl p-4 flex items-center justify-between">' +
+        '<div class="flex items-center gap-4"><div class="text-2xl">&#x1F4C5;</div>' +
+        '<div><p class="font-medium">' + when + '</p><p class="text-sm text-text-gray-400">' + (s.duration_minutes||60) + ' min · ' + (s.mode||'coaching') + '</p></div></div>' +
+        '<div class="flex items-center gap-3"><span class="text-xs px-2 py-1 bg-harvest-green-light text-harvest-green rounded-full">' + (s.status||'scheduled') + '</span>' + zoom + '</div></div>';
+    }
 
     // =============================================
     // RESOURCES

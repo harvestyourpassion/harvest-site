@@ -381,6 +381,9 @@
       });
       html += '</div>';
       if (s.zoom_link) html += H.card({ body: '🔗 <a href="' + H.esc(s.zoom_link) + '" target="_blank" style="color:var(--accent-blue)">Zoom link</a>' });
+      html += '<div class="h-row" style="gap:8px;margin:12px 0">' +
+        H.button({ label: 'Reschedule', variant: 'secondary', id: 'g-s-resched' }) +
+        H.button({ label: 'Cancel Session', variant: 'destructive', id: 'g-s-cancel' }) + '</div>';
 
       ['prep', 'live', 'post'].forEach(function (kind) {
         var note = notes.filter(function (n) { return n.type === kind; })[0];
@@ -393,6 +396,8 @@
       m.innerHTML = html;
 
       document.getElementById('g-s-back').addEventListener('click', function () { show('sessions'); });
+      document.getElementById('g-s-resched').addEventListener('click', function () { rescheduleModal(s, clientName); });
+      document.getElementById('g-s-cancel').addEventListener('click', function () { cancelSessionModal(s, clientName); });
       m.querySelectorAll('[data-outcome]').forEach(function (b) {
         b.addEventListener('click', function () {
           sb.from('sessions').update({ status: b.getAttribute('data-outcome') }).eq('id', sessionId).then(function (r) {
@@ -451,6 +456,70 @@
     ]).then(function (res) {
       if (res[0].error || res[1].error) H.toast('Partial failure — check console', 'error');
       else { H.toast('Follow-up generated & logged to timeline', 'success'); show('session', s.id); }
+    });
+  }
+
+  // #10 Reschedule: update time, refresh the Zoom meeting, email the client.
+  function rescheduleModal(s, clientName) {
+    var cur = s.scheduled_at ? new Date(s.scheduled_at) : new Date();
+    var localVal = new Date(cur.getTime() - cur.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    H.modal({
+      title: 'Reschedule — ' + clientName,
+      body: H.input({ id: 'rs-when', label: 'New date & time', type: 'datetime-local', value: localVal }),
+      actions: [{ label: 'Cancel', variant: 'ghost' }, { label: 'Reschedule', variant: 'primary' }],
+      onMount: function (ctl) {
+        ctl.el.querySelector('.h-btn--ghost').addEventListener('click', ctl.close);
+        ctl.el.querySelector('.h-btn--primary').addEventListener('click', function () {
+          var when = document.getElementById('rs-when').value;
+          if (!when) { H.toast('Pick a time', 'error'); return; }
+          var iso = new Date(when).toISOString();
+          sb.from('sessions').update({ scheduled_at: iso, status: 'scheduled' }).eq('id', s.id).then(function (r) {
+            if (r.error) { H.toast('Failed: ' + r.error.message, 'error'); return; }
+            // New Zoom meeting for the new time, then email the client.
+            sb.functions.invoke('zoom-meeting', { body: { topic: 'Harvest Coaching Session', start_time: iso, duration: s.duration_minutes || 60, session_id: s.id } }).then(function (z) {
+              var link = (z && z.data && z.data.join_url) || s.zoom_link;
+              var email = s.clients && s.clients.email;
+              if (email) {
+                var when2 = new Date(iso).toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+                sb.functions.invoke('send-email', { body: { to: email, subject: 'Your session has been rescheduled', body: 'Your session is now ' + when2 + '.' + (link ? '\n\nJoin: ' + link : '') + '\n\n— Leo' } }).catch(function () {});
+              }
+              H.toast('Rescheduled', 'success'); ctl.close(); show('session', s.id);
+            }).catch(function () { H.toast('Rescheduled', 'success'); ctl.close(); show('session', s.id); });
+          });
+        });
+      }
+    });
+  }
+
+  // #11 Cancel without penalty by default; optionally count against package.
+  function cancelSessionModal(s, clientName) {
+    H.modal({
+      title: 'Cancel Session — ' + clientName,
+      body: '<label class="h-row" style="gap:8px;margin-bottom:10px"><input type="checkbox" id="cx-count"> Count against the client’s package</label>' +
+        H.input({ id: 'cx-reason', label: 'Reason (optional, included in email)', type: 'textarea' }),
+      actions: [{ label: 'Keep session', variant: 'ghost' }, { label: 'Cancel session', variant: 'destructive' }],
+      onMount: function (ctl) {
+        ctl.el.querySelector('.h-btn--ghost').addEventListener('click', ctl.close);
+        ctl.el.querySelector('.h-btn--destructive').addEventListener('click', function () {
+          var count = document.getElementById('cx-count').checked;
+          var reason = document.getElementById('cx-reason').value.trim();
+          sb.from('sessions').update({ status: 'cancelled' }).eq('id', s.id).then(function (r) {
+            if (r.error) { H.toast('Failed: ' + r.error.message, 'error'); return; }
+            // Cancel the Zoom meeting (best-effort).
+            if (s.zoom_meeting_id) sb.functions.invoke('zoom-meeting', { body: { action: 'delete', meeting_id: s.zoom_meeting_id } }).catch(function () {});
+            // Optionally decrement remaining by counting this as used.
+            if (count && s.client_id) {
+              sb.from('clients').select('sessions_used').eq('id', s.client_id).maybeSingle().then(function (cr) {
+                var used = (cr.data && cr.data.sessions_used) || 0;
+                sb.from('clients').update({ sessions_used: used + 1 }).eq('id', s.client_id).then(function () {});
+              });
+            }
+            var email = s.clients && s.clients.email;
+            if (email) sb.functions.invoke('send-email', { body: { to: email, subject: 'Your session has been cancelled', body: 'Your coaching session has been cancelled.' + (reason ? '\n\nReason: ' + reason : '') + '\n\nReach out any time to rebook.\n— Leo' } }).catch(function () {});
+            H.toast('Session cancelled', 'info'); ctl.close(); show('sessions');
+          });
+        });
+      }
     });
   }
 
@@ -1041,7 +1110,7 @@
       var clients = res[0].data || [];
       var tpls = res[1].data || [];
       if (!clients.length) { H.toast('Add a client first', 'info'); return; }
-      var opts = clients.map(function (c) { return { value: c.id, label: c.name || c.email }; });
+      var opts = clients.map(function (c) { return { value: c.id, label: (c.name || 'Unnamed') + ' (' + (c.email || 'no email') + ')' }; });
       var tplOpts = [{ value: '', label: '— None —' }].concat(tpls.map(function (t) { return { value: t.id, label: t.name }; }));
       H.modal({
         title: 'Schedule Session',
@@ -1077,10 +1146,16 @@
               sb.functions.invoke('zoom-meeting', {
                 body: { topic: 'Harvest Coaching Session', start_time: row.scheduled_at, duration: row.duration_minutes, session_id: sessionId }
               }).then(function (z) {
+                var link = z && z.data && z.data.join_url;
                 // Also push to Google Calendar (no-op if not connected/disabled).
                 sb.functions.invoke('google-calendar', { body: { action: 'create-event', coach_id: coach.id, session_id: sessionId } }).catch(function () {});
-                if (z && z.data && z.data.join_url) H.toast('Session scheduled + Zoom link added', 'success');
-                else H.toast('Session scheduled', 'success');
+                // Confirmation email to the client (#8; no-op until Resend configured).
+                var cl = clients.find(function (c) { return c.id === row.client_id; });
+                if (cl && cl.email) {
+                  var when2 = new Date(row.scheduled_at).toLocaleString(undefined, { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+                  sb.functions.invoke('send-email', { body: { to: cl.email, subject: 'Your coaching session is scheduled', body: 'Your session is set for ' + when2 + '.' + (link ? '\n\nJoin: ' + link : '') + '\n\n— Leo' } }).catch(function () {});
+                }
+                H.toast(link ? 'Session scheduled + Zoom link added' : 'Session scheduled', 'success');
                 ctl.close(); show('sessions');
               }).catch(function () { H.toast('Session scheduled', 'success'); ctl.close(); show('sessions'); });
             });
@@ -1303,7 +1378,7 @@
     ]).then(function (res) {
       var clients = res[0].data || [];
       var tpls = res[1].data || [];
-      var opts = clients.map(function (c) { return { value: c.id, label: c.name || c.email }; });
+      var opts = clients.map(function (c) { return { value: c.id, label: (c.name || 'Unnamed') + ' (' + (c.email || 'no email') + ')' }; });
       var tplOpts = [{ value: '', label: '— None (default terms) —' }].concat(tpls.map(function (t) { return { value: t.id, label: t.name }; }));
       H.modal({
         title: 'New Contract',

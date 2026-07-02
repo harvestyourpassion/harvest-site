@@ -45,6 +45,17 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const token = await zoomToken();
+
+    // Cancel/delete a meeting (used when a session is cancelled).
+    if (body.action === "delete" && body.meeting_id) {
+      const del = await fetch(`https://api.zoom.us/v2/meetings/${body.meeting_id}`, {
+        method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+      });
+      return new Response(JSON.stringify({ deleted: del.ok }), {
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+
     const res = await fetch("https://api.zoom.us/v2/users/me/meetings", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
