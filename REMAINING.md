@@ -66,3 +66,13 @@ _As of this build. ✅ = done · 🟡 = partial · ❌ = not built · 🔒 = nee
 
 ## Deferred (per spec — not needed now)
 - ⏸ VIP scheduling overrides w/ permissions · Advanced analytics/reporting · Multi-user editorial workflow · Template marketplace · Custom mode (theming) · Free downloadable resources
+
+## Audit (Claude_Feedback_Batch_July1) — status
+- HIGH (11): ✅ all done
+- MEDIUM (17): ✅ all done
+- LOW: done — #1 #2 #3 #8 #12 #14 #15 #16 #27 #30 #33 #37 #38 #44 #45 #47 #52 #53
+  · code-verified, needs live browser test — #48 (pin logic correct), #50 (per-section
+    aggregation works; cross-section "income−bills" = deferred Formula sections), #51 (Roots audit)
+  · deferred/follow-up — #25 sent-survey tracking (partial), #26 per-client survey override,
+    #40 test-as-client (Act As Client exists), #46 About admin-editable, #49 cross-user tab share (not built)
+- BACKLOG #58 Quick Connect — not started (per Leo, after audit)
